@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
 
@@ -15,6 +14,16 @@ interface PostBody {
   energyLevel?: number;
   audioUrl?: string;
   transcript?: string;
+}
+
+interface DateRangeFilter {
+  gte?: Date;
+  lte?: Date;
+}
+
+interface LogEntryFilter {
+  userId: string;
+  date?: DateRangeFilter;
 }
 
 // ─── POST /api/log ────────────────────────────────────────────────────────────
@@ -111,7 +120,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
-    const where: Prisma.LogEntryWhereInput = { userId };
+    const where: LogEntryFilter = { userId };
 
     if (date) {
       const start = new Date(date);
@@ -120,7 +129,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       end.setUTCHours(23, 59, 59, 999);
       where.date = { gte: start, lte: end };
     } else if (from || to) {
-      const dateFilter: Prisma.DateTimeFilter<"LogEntry"> = {};
+      const dateFilter: DateRangeFilter = {};
       if (from) dateFilter.gte = new Date(from);
       if (to) {
         const toDate = new Date(to);

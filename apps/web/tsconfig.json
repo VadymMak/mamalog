@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@mamalog/database": ["../../packages/database/src/index.ts"],
+      "@mamalog/types": ["../../packages/types/src/index.ts"]
     }
   },
   "include": [

@@ -1,6 +1,19 @@
-import type { LogEntry, BehaviorLog } from "@prisma/client";
+interface BehaviorLogSummary {
+  category: string;
+  intensity: number | null;
+  trigger: string | null;
+}
 
-type LogEntryWithBehaviors = LogEntry & { behaviors: BehaviorLog[] };
+interface LogEntryWithBehaviors {
+  date: Date;
+  moodScore: number;
+  emotions: string[];
+  triggers: string[];
+  energyLevel: number | null;
+  sleepHours: number | null;
+  notes: string | null;
+  behaviors: BehaviorLogSummary[];
+}
 
 export function formatLogsForAI(logs: LogEntryWithBehaviors[]): string {
   if (logs.length === 0) return "No diary entries in the last 7 days.";
