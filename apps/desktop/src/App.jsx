@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Dashboard from "./screens/Dashboard";
 import SpecialistRequests from "./screens/SpecialistRequests";
 import Users from "./screens/Users";
+import ContentModeration from "./screens/ContentModeration";
 import "./styles.css";
 
 const NAV_ITEMS = [
@@ -12,26 +13,41 @@ const NAV_ITEMS = [
   { id: "settings", label: "Настройки" },
 ];
 
+let toastId = 0;
+
 function PlaceholderScreen({ title }) {
   return (
     <div className="screen">
       <h1 className="screen-title">{title}</h1>
-      <p style={{ color: "#888" }}>Раздел в разработке</p>
+      <div className="empty-state">
+        <p>Раздел в разработке</p>
+      </div>
     </div>
   );
 }
 
 export default function App() {
   const [active, setActive] = useState("analytics");
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((message, type = "success") => {
+    const id = ++toastId;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
 
   function renderContent() {
     switch (active) {
       case "specialists":
-        return <SpecialistRequests />;
+        return <SpecialistRequests showToast={showToast} />;
       case "users":
-        return <Users />;
+        return <Users showToast={showToast} />;
       case "analytics":
-        return <Dashboard />;
+        return <Dashboard showToast={showToast} />;
+      case "content":
+        return <ContentModeration />;
       default:
         return (
           <PlaceholderScreen
@@ -69,6 +85,15 @@ export default function App() {
           <span className="header-user">Admin</span>
         </header>
         <div className="content">{renderContent()}</div>
+      </div>
+
+      {/* Toast container */}
+      <div className="toast-container">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast-${t.type}`}>
+            {t.message}
+          </div>
+        ))}
       </div>
     </div>
   );

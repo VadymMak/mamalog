@@ -1,40 +1,60 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
-export default function Dashboard() {
+const CARDS = [
+  { key: "totalUsers", label: "Всего пользователей" },
+  { key: "activeToday", label: "Активных сегодня" },
+  { key: "pendingSpecialists", label: "Ожидают одобрения" },
+  { key: "totalLogEntries", label: "Записей в дневнике" },
+];
+
+export default function Dashboard({ showToast }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
+  function load() {
     api
       .get("/api/admin/stats")
-      .then((r) => setStats(r.data.data))
-      .catch(() => setStats(null))
+      .then((r) => {
+        setStats(r.data.data);
+        setError(null);
+      })
+      .catch(() => setError("Не удалось загрузить статистику"))
       .finally(() => setLoading(false));
-  }, []);
+  }
 
-  const cards = [
-    { label: "Всего пользователей", value: stats?.totalUsers ?? "—" },
-    { label: "Активных сегодня", value: stats?.activeToday ?? "—" },
-    { label: "Ожидают одобрения", value: stats?.pendingSpecialists ?? "—" },
-    { label: "Доход MRR", value: stats?.mrr ? `$${stats.mrr}` : "—" },
-  ];
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="screen">
-      <h1 className="screen-title">Аналитика</h1>
-      {loading ? (
-        <p className="loading">Загрузка...</p>
-      ) : (
-        <div className="stats-grid">
-          {cards.map((c) => (
-            <div key={c.label} className="stat-card">
-              <span className="stat-value">{c.value}</span>
-              <span className="stat-label">{c.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="screen-header">
+        <h1 className="screen-title">Аналитика</h1>
+        {!loading && (
+          <button className="btn-refresh" onClick={() => { setLoading(true); load(); }}>
+            ↻ Обновить
+          </button>
+        )}
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      <div className="stats-grid">
+        {CARDS.map((c) => (
+          <div key={c.key} className="stat-card">
+            {loading ? (
+              <span className="stat-skeleton" />
+            ) : (
+              <span className="stat-value">{stats?.[c.key] ?? "—"}</span>
+            )}
+            <span className="stat-label">{c.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
