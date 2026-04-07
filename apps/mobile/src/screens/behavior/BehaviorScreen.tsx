@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -182,6 +183,7 @@ export default function BehaviorScreen() {
   const [behaviors, setBehaviors] = useState<BehaviorLog[]>([]);
   const [todayLogId, setTodayLogId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<CategoryKey | null>(null);
 
@@ -214,6 +216,27 @@ export default function BehaviorScreen() {
       return () => { active = false; };
     }, [t])
   );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const logRes = await api.get<LogApiResponse>(`/api/log?date=${todayISO()}`);
+      const logEntry = logRes.data.data[0];
+      if (!logEntry) {
+        setBehaviors([]);
+        setTodayLogId(null);
+      } else {
+        setTodayLogId(logEntry.id);
+        const bRes = await api.get<BehaviorApiResponse>(`/api/behavior?logEntryId=${logEntry.id}`);
+        setBehaviors(bRes.data.data);
+      }
+    } catch {
+      setError(t("behavior.loadError"));
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const filtered = activeKey
     ? behaviors.filter((b) => b.category === CATEGORY_VALUES[activeKey])
@@ -288,6 +311,14 @@ export default function BehaviorScreen() {
           renderItem={({ item }) => <BehaviorCard item={item} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         />
       )}
 

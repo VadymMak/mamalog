@@ -10,7 +10,8 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -69,8 +70,9 @@ function SectionTitle({ label }: { label: string }) {
 export default function NewLogScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<DiaryStackParamList>>();
+  const route = useRoute<RouteProp<DiaryStackParamList, "NewLog">>();
 
-  const [moodScore, setMoodScore] = useState(5);
+  const [moodScore, setMoodScore] = useState(route.params?.initialMoodScore ?? 5);
   const [selectedEmotions, setSelectedEmotions] = useState<Set<string>>(new Set());
   const [selectedTriggers, setSelectedTriggers] = useState<Set<string>>(new Set());
   const [sleepHours, setSleepHours] = useState("");

@@ -117,6 +117,14 @@ export default function SOSScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="close" size={28} color={colors.white} />
+        </TouchableOpacity>
         <Text style={styles.sosTitle}>{t("sos.title")}</Text>
         <Text style={styles.sosSubtitle}>{t("sos.subtitle")}</Text>
       </View>
@@ -255,6 +263,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     paddingHorizontal: spacing.lg,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    zIndex: 10,
+    padding: spacing.xs,
   },
   sosTitle: {
     fontSize: 72,

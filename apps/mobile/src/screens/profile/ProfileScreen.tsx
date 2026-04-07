@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,6 +34,12 @@ export default function ProfileScreen() {
   const [diagnosis, setDiagnosis] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Dismiss RefreshControl when loading completes
+  useEffect(() => {
+    if (refreshing && !loading) setRefreshing(false);
+  }, [loading, refreshing]);
   // Sync form when API data arrives
   React.useEffect(() => {
     if (user) {
@@ -112,6 +119,14 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); refetch(); }}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         {/* ── Avatar section ──────────────────────────────────── */}
         <View style={styles.avatarSection}>

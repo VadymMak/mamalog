@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -97,29 +98,33 @@ export default function LibraryScreen() {
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [specialists, setSpecialists] = useState<Specialist[]>(MOCK_SPECIALISTS);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSpecialists = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/specialist`);
+      const json = (await res.json()) as { specialists?: Specialist[] };
+      if (json.specialists?.length) {
+        setSpecialists(json.specialists);
+      }
+    } catch {
+      // keep mock data
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-
-      const fetchSpecialists = async () => {
-        try {
-          const res = await fetch(`${API_URL}/api/specialist`);
-          const json = await res.json();
-          if (active && json.specialists?.length) {
-            setSpecialists(json.specialists);
-          }
-        } catch {
-          // keep mock data
-        }
-      };
-
-      fetchSpecialists();
-      return () => {
-        active = false;
-      };
-    }, [])
+      fetchSpecialists().then(() => { if (!active) return; });
+      return () => { active = false; };
+    }, [fetchSpecialists])
   );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchSpecialists();
+    setRefreshing(false);
+  }
 
   const toggleBookmark = useCallback((id: string) => {
     setBookmarks((prev) => {
@@ -203,6 +208,14 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         {/* Featured article */}
         {featuredArticle && (

@@ -30,7 +30,7 @@ export type MainTabParamList = {
 
 export type DiaryStackParamList = {
   DiaryHome: undefined;
-  NewLog: undefined;
+  NewLog: { initialMoodScore?: number };
   LogDetail: { id: string };
   Profile: undefined;
 };

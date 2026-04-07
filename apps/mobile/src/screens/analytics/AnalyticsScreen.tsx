@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -397,6 +398,7 @@ export default function AnalyticsScreen() {
   const [behaviors, setBehaviors] = useState<BehaviorLog[]>([]);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -434,6 +436,40 @@ export default function AnalyticsScreen() {
       setAiInsights([]);
     } finally {
       setAiLoading(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
+    setAiInsights([]);
+    try {
+      const { from, to } = getDateRange(period);
+      const logRes = await api.get<LogApiResponse>(`/api/log?from=${from}&to=${to}`);
+      const entries = logRes.data.data;
+      setLogEntries(entries);
+
+      if (entries.length > 0) {
+        const behaviorResults = await Promise.all(
+          entries.map((e) =>
+            api
+              .get<BehaviorApiResponse>(`/api/behavior?logEntryId=${e.id}`)
+              .then((r) => r.data.data)
+              .catch(() => [] as BehaviorLog[])
+          )
+        );
+        setBehaviors(behaviorResults.flat());
+      } else {
+        setBehaviors([]);
+      }
+
+      // Clear cache for this period so AI re-fetches fresh data
+      aiCache.current.delete(period);
+      fetchAiInsights(entries, period);
+    } catch {
+      setError(t("analytics.loadError"));
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -563,6 +599,14 @@ export default function AnalyticsScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
           {/* Summary row */}
           <View style={styles.summaryRow}>

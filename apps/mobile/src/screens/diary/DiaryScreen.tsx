@@ -10,6 +10,7 @@ import {
   Animated,
   PanResponder,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -270,6 +271,7 @@ export default function DiaryScreen() {
 
   const [entries, setEntries] = useState<LogEntryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
 
@@ -293,6 +295,19 @@ export default function DiaryScreen() {
     }, [t])
   );
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const res = await api.get<ApiResponse>(`/api/log?date=${todayISO()}`);
+      setEntries(res.data.data);
+      setError(null);
+    } catch {
+      setError(t("diary.loadError"));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function handleDelete(id: string): Promise<void> {
     await api.delete(`/api/log/${id}`);
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -314,8 +329,14 @@ export default function DiaryScreen() {
         </TouchableOpacity>
       </View>
 
-      <MoodSection selectedScore={selectedMood} onSelect={setSelectedMood} />
-      <QuickActions onNewLog={() => navigation.navigate("NewLog")} />
+      <MoodSection
+        selectedScore={selectedMood}
+        onSelect={(score) => {
+          setSelectedMood(score);
+          navigation.navigate("NewLog", { initialMoodScore: score });
+        }}
+      />
+      <QuickActions onNewLog={() => navigation.navigate("NewLog", {})} />
 
       {loading ? (
         <View style={commonStyles.emptyState}>
@@ -343,12 +364,20 @@ export default function DiaryScreen() {
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         />
       )}
 
       <TouchableOpacity
         style={commonStyles.fab}
-        onPress={() => navigation.navigate("NewLog")}
+        onPress={() => navigation.navigate("NewLog", {})}
         activeOpacity={0.85}
       >
         <Text style={styles.fabText}>+</Text>
