@@ -65,11 +65,13 @@ model BehaviorLog {
 
 model Specialist {
   id         String           @id @default(cuid())
+  userId     String?          @unique
   email      String           @unique
   name       String
   photoUrl   String?
   specialty  String
   bio        String?
+  experience Int?
   diplomaUrl String?
   status     SpecialistStatus @default(PENDING)
   createdAt  DateTime         @default(now())

@@ -184,6 +184,14 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              style={styles.specialistRow}
+              onPress={() => navigation.navigate("SpecialistRegister")}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.specialistText}>{t("specialist.loginPrompt")}</Text>
+            </TouchableOpacity>
+
             <View style={styles.langRow}>
               <LanguageSwitcher />
             </View>
@@ -258,6 +266,15 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.primary,
     fontWeight: "600",
+  },
+  specialistRow: {
+    alignItems: "center",
+  },
+  specialistText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   langRow: {
     alignItems: "center",

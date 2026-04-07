@@ -23,7 +23,7 @@ Notifications.setNotificationHandler({
 
 export type RootStackParamList = {
   Onboarding: undefined;
-  Auth: { initialScreen?: "Login" | "Register" } | undefined;
+  Auth: { initialScreen?: "Login" | "Register" | "SpecialistRegister" } | undefined;
   Main: undefined;
   SOS: undefined;
 };

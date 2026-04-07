@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
+import SpecialistRegisterScreen from "../screens/specialist/SpecialistRegisterScreen";
 import type { RootStackParamList } from "./AppNavigator";
 
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  SpecialistRegister: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -23,6 +25,7 @@ export default function AuthNavigator() {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="SpecialistRegister" component={SpecialistRegisterScreen} />
     </Stack.Navigator>
   );
 }
