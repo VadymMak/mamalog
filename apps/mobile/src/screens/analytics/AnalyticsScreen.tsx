@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { LineChart } from "react-native-chart-kit";
+import { LineChart, BarChart } from "react-native-chart-kit";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
@@ -40,6 +40,17 @@ const CHART_CONFIG = {
   strokeWidth: 2,
   propsForDots: { r: "4", strokeWidth: "2", stroke: colors.primary },
   propsForBackgroundLines: { strokeDasharray: "4, 4", stroke: colors.border, strokeWidth: "1" },
+};
+
+const BAR_CHART_CONFIG = {
+  backgroundColor: colors.surface,
+  backgroundGradientFrom: colors.surface,
+  backgroundGradientTo: colors.surface,
+  decimalPlaces: 0,
+  color: (opacity: number = 1) => `rgba(${PRIMARY_RGB}, ${opacity})`,
+  labelColor: (opacity: number = 1) => `rgba(${SECONDARY_RGB}, ${opacity})`,
+  barPercentage: 0.65,
+  strokeWidth: 2,
 };
 
 // Maps stored Russian category values → colors
@@ -193,7 +204,13 @@ function MoodChartSection({ entries, period }: MoodChartProps) {
   );
 }
 
-// ─── Behavior frequency chart (custom horizontal bars) ────────────────────────
+// ─── Behavior frequency chart (BarChart from react-native-chart-kit) ─────────
+
+function abbreviate(label: string): string {
+  // First word, max 8 chars
+  const word = label.split(" ")[0] ?? label;
+  return word.length > 8 ? word.slice(0, 7) + "." : word;
+}
 
 function BehaviorFrequencySection({ behaviors }: { behaviors: BehaviorLog[] }) {
   const { t } = useTranslation();
@@ -203,41 +220,46 @@ function BehaviorFrequencySection({ behaviors }: { behaviors: BehaviorLog[] }) {
     freq[b.category] = (freq[b.category] ?? 0) + 1;
   }
 
+  // Only categories with data, sorted by count desc
   const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-  const maxCount = sorted[0]?.[1] ?? 1;
+
+  if (sorted.length === 0) {
+    return (
+      <View style={commonStyles.card}>
+        <SectionHeader title={t("analytics.behaviorChart")} />
+        <Text style={styles.noDataText}>{t("analytics.noData")}</Text>
+      </View>
+    );
+  }
+
+  const labels = sorted.map(([cat]) => abbreviate(cat));
+  const counts = sorted.map(([, cnt]) => cnt);
 
   return (
     <View style={commonStyles.card}>
       <SectionHeader title={t("analytics.behaviorChart")} />
-      {sorted.length === 0 ? (
-        <Text style={styles.noDataText}>{t("analytics.noData")}</Text>
-      ) : (
-        <View style={styles.behaviorBarsContainer}>
-          {sorted.map(([category, count]) => {
-            const barColor = CATEGORY_COLORS[category] ?? colors.primary;
-            const fillRatio = count / maxCount;
-            return (
-              <View key={category} style={styles.behaviorBarRow}>
-                <Text style={styles.behaviorBarLabel} numberOfLines={1}>
-                  {category}
-                </Text>
-                <View style={styles.behaviorBarTrack}>
-                  <View
-                    style={[
-                      styles.behaviorBarFill,
-                      { flex: fillRatio, backgroundColor: barColor },
-                    ]}
-                  />
-                  <View style={{ flex: 1 - fillRatio }} />
-                </View>
-                <Text style={[styles.behaviorBarCount, { color: barColor }]}>
-                  {count}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
+      <BarChart
+        data={{ labels, datasets: [{ data: counts }] }}
+        width={CHART_WIDTH}
+        height={220}
+        yAxisLabel=""
+        yAxisSuffix=""
+        chartConfig={BAR_CHART_CONFIG}
+        fromZero
+        showValuesOnTopOfBars
+        withHorizontalLabels={false}
+        verticalLabelRotation={30}
+        style={{ borderRadius: borderRadius.md, marginLeft: -spacing.sm }}
+      />
+      {/* Category color legend */}
+      <View style={styles.barLegend}>
+        {sorted.map(([cat]) => (
+          <View key={cat} style={styles.barLegendItem}>
+            <View style={[styles.barLegendDot, { backgroundColor: CATEGORY_COLORS[cat] ?? colors.primary }]} />
+            <Text style={styles.barLegendText} numberOfLines={1}>{cat}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -386,7 +408,7 @@ export default function AnalyticsScreen() {
     setAiLoading(true);
     try {
       const res = await api.post<AiChatResponse>("/api/ai/chat", {
-        message: `Analyze my diary data and give 3 short insights about patterns you see. Reply in ${language}. Format: just 3 bullet points, max 10 words each.`,
+        message: `Analyze diary data and list 3 short behavioral patterns you notice. Max 10 words each. Language: ${language}`,
         language,
       });
       const raw = res.data.data.reply;
@@ -505,6 +527,11 @@ export default function AnalyticsScreen() {
         <View style={commonStyles.emptyState}>
           <Text style={[commonStyles.emptyStateText, { color: colors.error }]}>{error}</Text>
         </View>
+      ) : logEntries.length < 3 ? (
+        <View style={commonStyles.emptyState}>
+          <Text style={styles.emptyEmoji}>📊</Text>
+          <Text style={commonStyles.emptyStateText}>{t("analytics.minData")}</Text>
+        </View>
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -615,36 +642,31 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 
-  // Behavior frequency bars
-  behaviorBarsContainer: { gap: spacing.sm },
-  behaviorBarRow: {
+  // Behavior bar legend
+  barLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  barLegendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  behaviorBarLabel: {
+  barLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: borderRadius.full,
+  },
+  barLegendText: {
     ...typography.caption,
-    color: colors.textPrimary,
-    width: 100,
+    color: colors.textSecondary,
+    maxWidth: 120,
   },
-  behaviorBarTrack: {
-    flex: 1,
-    flexDirection: "row",
-    height: 16,
-    borderRadius: borderRadius.sm,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceSecondary,
-  },
-  behaviorBarFill: {
-    height: 16,
-    borderRadius: borderRadius.sm,
-  },
-  behaviorBarCount: {
-    ...typography.caption,
-    fontWeight: "700",
-    width: 24,
-    textAlign: "right",
-  },
+
+  // Empty state
+  emptyEmoji: { fontSize: 48, marginBottom: spacing.sm },
 
   // AI insights
   insightsHeader: {
