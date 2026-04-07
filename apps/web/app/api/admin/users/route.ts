@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAdminKey } from "@/lib/adminAuth";
+import { checkAdminKey, adminAuthResponse } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = checkAdminKey(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return adminAuthResponse(auth);
 
   const { searchParams } = req.nextUrl;
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 200);

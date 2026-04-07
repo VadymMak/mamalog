@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAdminKey } from "@/lib/adminAuth";
+import { checkAdminKey, adminAuthResponse } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = checkAdminKey(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return adminAuthResponse(auth);
 
   try {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
-    const [totalUsers, pendingSpecialists, totalLogEntries, activeTodayResult] =
+    const [totalUsers, pendingSpecialists, totalLogEntries, activeTodayEntries] =
       await prisma.$transaction([
         prisma.user.count(),
         prisma.specialist.count({ where: { status: "PENDING" } }),
         prisma.logEntry.count(),
-        prisma.logEntry.groupBy({
-          by: ["userId"],
+        prisma.logEntry.findMany({
           where: { createdAt: { gte: todayStart } },
+          select: { userId: true },
+          distinct: ["userId"],
         }),
       ]);
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       success: true,
       data: {
         totalUsers,
-        activeToday: activeTodayResult.length,
+        activeToday: activeTodayEntries.length,
         pendingSpecialists,
         totalLogEntries,
         mrr: null,

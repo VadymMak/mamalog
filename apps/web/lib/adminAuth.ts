@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type AdminAuthOk = { ok: true };
-type AdminAuthFail = { ok: false; response: NextResponse };
-type AdminAuthResult = AdminAuthOk | AdminAuthFail;
+export type AdminAuthOk = { ok: true };
+export type AdminAuthFail = { ok: false; response: NextResponse };
+export type AdminAuthResult = AdminAuthOk | AdminAuthFail;
 
 export function checkAdminKey(req: NextRequest): AdminAuthResult {
   const key = req.headers.get("x-admin-key");
@@ -19,4 +19,9 @@ export function checkAdminKey(req: NextRequest): AdminAuthResult {
   }
 
   return { ok: true };
+}
+
+/** Type-safe helper — use when TypeScript fails to narrow the union */
+export function adminAuthResponse(auth: AdminAuthResult): NextResponse {
+  return (auth as AdminAuthFail).response;
 }

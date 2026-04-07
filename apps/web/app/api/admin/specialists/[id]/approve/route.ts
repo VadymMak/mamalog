@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAdminKey } from "@/lib/adminAuth";
+import { checkAdminKey, adminAuthResponse } from "@/lib/adminAuth";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const auth = checkAdminKey(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return adminAuthResponse(auth);
 
   const { id } = await params;
 
