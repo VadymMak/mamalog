@@ -29,6 +29,7 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
+  passwordHash?: string | null;
   role: UserRole;
   language: string;
   createdAt: Date;
