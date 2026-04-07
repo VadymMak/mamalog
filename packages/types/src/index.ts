@@ -28,3 +28,9 @@ export interface AdminUser {
   role: "admin" | "superadmin";
   createdAt: Date;
 }
+
+export type SupportedLanguage = "ru" | "en";
+
+export interface UserSettings {
+  language: SupportedLanguage;
+}
