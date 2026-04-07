@@ -13,7 +13,8 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
-import { colors } from "../../lib/colors";
+import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
+import { commonStyles } from "../../theme/components";
 import type { DiaryStackParamList } from "../../navigation/MainNavigator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -24,7 +25,6 @@ interface LogEntryItem {
   moodScore: number;
   emotions: string[];
   notes: string | null;
-  sleepHours: number | null;
 }
 
 interface ApiResponse {
@@ -35,19 +35,20 @@ interface ApiResponse {
 
 // ─── Mood config ──────────────────────────────────────────────────────────────
 
-const MOOD_EMOJIS: { emoji: string; score: number }[] = [
+const MOOD_EMOJIS = [
   { emoji: "😢", score: 2 },
   { emoji: "😔", score: 4 },
   { emoji: "😐", score: 5 },
   { emoji: "🙂", score: 7 },
   { emoji: "😊", score: 9 },
-];
+] as const;
 
 function moodEmojiForScore(score: number): string {
-  const best = MOOD_EMOJIS.reduce((prev, curr) =>
-    Math.abs(curr.score - score) < Math.abs(prev.score - score) ? curr : prev
+  return (
+    MOOD_EMOJIS.reduce((prev, curr) =>
+      Math.abs(curr.score - score) < Math.abs(prev.score - score) ? curr : prev
+    ).emoji
   );
-  return best.emoji;
 }
 
 function todayISO(): string {
@@ -85,10 +86,7 @@ function MoodSection({ selectedScore, onSelect }: MoodSectionProps) {
         {MOOD_EMOJIS.map(({ emoji, score }) => (
           <TouchableOpacity
             key={score}
-            style={[
-              styles.moodButton,
-              selectedScore === score && styles.moodButtonSelected,
-            ]}
+            style={[styles.moodButton, selectedScore === score && styles.moodButtonSelected]}
             onPress={() => onSelect(score)}
             activeOpacity={0.7}
           >
@@ -106,24 +104,18 @@ interface QuickActionsProps {
 
 function QuickActions({ onNewLog }: QuickActionsProps) {
   const { t } = useTranslation();
-  const actions = [
-    { label: t("diary.behavior") },
-    { label: t("diary.sleep") },
-    { label: t("diary.food") },
-    { label: t("diary.emotions") },
+  const pills = [
+    t("diary.behavior"),
+    t("diary.sleep"),
+    t("diary.food"),
+    t("diary.emotions"),
   ];
-
   return (
     <View style={styles.section}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
-        {actions.map((action) => (
-          <TouchableOpacity
-            key={action.label}
-            style={styles.quickPill}
-            onPress={onNewLog}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.quickPillText}>{action.label}</Text>
+        {pills.map((label) => (
+          <TouchableOpacity key={label} style={styles.quickPill} onPress={onNewLog} activeOpacity={0.7}>
+            <Text style={styles.quickPillText}>{label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -131,11 +123,7 @@ function QuickActions({ onNewLog }: QuickActionsProps) {
   );
 }
 
-interface LogCardProps {
-  item: LogEntryItem;
-}
-
-function LogCard({ item }: LogCardProps) {
+function LogCard({ item }: { item: LogEntryItem }) {
   return (
     <View style={styles.logCard}>
       <View style={styles.logCardLeft}>
@@ -144,9 +132,7 @@ function LogCard({ item }: LogCardProps) {
       </View>
       <View style={styles.logCardBody}>
         {item.notes ? (
-          <Text style={styles.logNotes} numberOfLines={2}>
-            {item.notes}
-          </Text>
+          <Text style={styles.logNotes} numberOfLines={2}>{item.notes}</Text>
         ) : null}
         {item.emotions.length > 0 && (
           <Text style={styles.logEmotions} numberOfLines={1}>
@@ -189,61 +175,42 @@ export default function DiaryScreen() {
     }, [t])
   );
 
-  function handleNewLog() {
-    navigation.navigate("NewLog");
-  }
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Date header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t("diary.title")}</Text>
-          <Text style={styles.headerDate}>{formatDate(new Date().toISOString())}</Text>
-        </View>
-
-        <MoodSection selectedScore={selectedMood} onSelect={setSelectedMood} />
-        <QuickActions onNewLog={handleNewLog} />
-
-        {/* Timeline */}
-        <View style={styles.timelineHeader}>
-          <Text style={styles.sectionLabel}>
-            {entries.length > 0 ? `${entries.length} ${t("diary.entry")}` : ""}
-          </Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : error ? (
-          <View style={styles.center}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : entries.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={styles.emptyEmoji}>📓</Text>
-            <Text style={styles.emptyText}>{t("diary.noEntries")}</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={entries}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <LogCard item={item} />}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-
-        {/* FAB */}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleNewLog}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={commonStyles.screen}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{t("diary.title")}</Text>
+        <Text style={styles.headerDate}>{formatDate(new Date().toISOString())}</Text>
       </View>
+
+      <MoodSection selectedScore={selectedMood} onSelect={setSelectedMood} />
+      <QuickActions onNewLog={() => navigation.navigate("NewLog")} />
+
+      {loading ? (
+        <View style={commonStyles.emptyState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={commonStyles.emptyState}>
+          <Text style={[commonStyles.emptyStateText, { color: colors.error }]}>{error}</Text>
+        </View>
+      ) : entries.length === 0 ? (
+        <View style={commonStyles.emptyState}>
+          <Text style={styles.emptyEmoji}>📓</Text>
+          <Text style={commonStyles.emptyStateText}>{t("diary.noEntries")}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={entries}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <LogCard item={item} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      <TouchableOpacity style={commonStyles.fab} onPress={() => navigation.navigate("NewLog")} activeOpacity={0.85}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -251,47 +218,38 @@ export default function DiaryScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    ...typography.h2,
     color: colors.textPrimary,
   },
   headerDate: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
     textTransform: "capitalize",
   },
   section: {
-    backgroundColor: colors.card,
-    marginTop: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
   sectionLabel: {
-    fontSize: 13,
+    ...typography.caption,
     fontWeight: "600",
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -302,7 +260,7 @@ const styles = StyleSheet.create({
   moodButton: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: borderRadius.full,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -313,112 +271,45 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: "#EDE9FE",
   },
-  moodEmoji: {
-    fontSize: 26,
-  },
-  quickRow: {
-    gap: 8,
-    paddingBottom: 2,
-  },
+  moodEmoji: { fontSize: 26 },
+  quickRow: { gap: spacing.sm, paddingBottom: 2 },
   quickPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
     backgroundColor: "#EDE9FE",
     borderWidth: 1,
     borderColor: colors.primary,
   },
   quickPillText: {
-    fontSize: 13,
-    fontWeight: "600",
+    ...typography.buttonSmall,
     color: colors.primary,
   },
-  timelineHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 80,
-  },
-  errorText: {
-    fontSize: 15,
-    color: colors.sos,
-    textAlign: "center",
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-  },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 80,
-    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl + spacing.xl,
+    gap: spacing.sm,
   },
   logCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm + spacing.xs,
     flexDirection: "row",
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
   logCardLeft: {
     alignItems: "center",
-    marginRight: 12,
+    marginRight: spacing.sm,
     minWidth: 44,
   },
-  logTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  logEmoji: {
-    fontSize: 24,
-  },
-  logCardBody: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  logNotes: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    lineHeight: 20,
-  },
-  logEmotions: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  fabText: {
-    fontSize: 28,
-    color: "#FFFFFF",
-    lineHeight: 32,
-    fontWeight: "300",
-  },
+  logTime: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
+  logEmoji: { fontSize: 24 },
+  logCardBody: { flex: 1, justifyContent: "center" },
+  logNotes: { ...typography.bodySmall, color: colors.textPrimary, lineHeight: 20 },
+  logEmotions: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  emptyEmoji: { fontSize: 48, marginBottom: spacing.sm },
+  fabText: { fontSize: 28, color: colors.white, lineHeight: 32, fontWeight: "300" },
 });

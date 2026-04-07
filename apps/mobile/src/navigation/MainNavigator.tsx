@@ -16,7 +16,7 @@ import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
 import AnalyticsScreen from "../screens/analytics/AnalyticsScreen";
 import LibraryScreen from "../screens/library/LibraryScreen";
 import type { RootStackParamList } from "./AppNavigator";
-import { colors } from "../lib/colors";
+import { colors, spacing } from "../theme";
 
 export type MainTabParamList = {
   DiaryTab: undefined;
@@ -61,7 +61,7 @@ function DiaryStackNavigator() {
   return (
     <DiaryStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
+        headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textPrimary,
         headerRight: () => <SOSButton />,
       }}
@@ -90,7 +90,7 @@ function BehaviorStackNavigator() {
   return (
     <BehaviorStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
+        headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textPrimary,
         headerRight: () => <SOSButton />,
       }}
@@ -122,11 +122,11 @@ export default function MainNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerRight: () => <SOSButton />,
-        headerStyle: { backgroundColor: colors.card },
+        headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textPrimary,
-        tabBarActiveTintColor: colors.tabActive,
-        tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textHint,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
       }}
     >
       <Tab.Screen
@@ -192,7 +192,7 @@ export default function MainNavigator() {
 
 const styles = StyleSheet.create({
   sosButton: {
-    marginRight: 8,
-    padding: 4,
+    marginRight: spacing.sm,
+    padding: spacing.xs,
   },
 });

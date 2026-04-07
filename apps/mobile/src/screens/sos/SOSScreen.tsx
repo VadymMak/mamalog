@@ -8,6 +8,7 @@ import {
   StatusBar,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 
 interface SOSAction {
   key: string;
@@ -44,10 +45,9 @@ export default function SOSScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#C53030" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.sos} />
       <View style={styles.container}>
         <Text style={styles.title}>{t("sos.title")}</Text>
-
         <View style={styles.buttonsContainer}>
           {actions.map((action) => (
             <TouchableOpacity
@@ -68,41 +68,36 @@ export default function SOSScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#C53030",
+    backgroundColor: colors.sos,
   },
   container: {
     flex: 1,
-    backgroundColor: "#C53030",
+    backgroundColor: colors.sos,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
   },
   title: {
     fontSize: 80,
     fontWeight: "900",
-    color: "#FFFFFF",
+    color: colors.white,
     letterSpacing: 8,
-    marginBottom: 48,
+    marginBottom: spacing.xxl,
   },
   buttonsContainer: {
     width: "100%",
-    gap: 16,
+    gap: spacing.md,
   },
   button: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
     paddingVertical: 18,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadows.md,
   },
   buttonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#C53030",
+    ...typography.h3,
+    color: colors.sos,
   },
 });
