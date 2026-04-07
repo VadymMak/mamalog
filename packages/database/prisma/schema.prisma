@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  role         UserRole      @default(MAMA)
+  language     String        @default("ru")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  subscription Subscription?
+  logEntries   LogEntry[]
+  settings     UserSettings?
+}
+
+model UserSettings {
+  id       String @id @default(cuid())
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id])
+  language String @default("ru")
+  theme    String @default("dark")
+}
+
+model LogEntry {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  date        DateTime      @default(now())
+  moodScore   Int
+  emotions    String[]
+  triggers    String[]
+  notes       String?
+  sleepHours  Float?
+  energyLevel Int?
+  audioUrl    String?
+  transcript  String?
+  createdAt   DateTime      @default(now())
+  behaviors   BehaviorLog[]
+}
+
+model BehaviorLog {
+  id         String   @id @default(cuid())
+  logEntryId String
+  logEntry   LogEntry @relation(fields: [logEntryId], references: [id])
+  category   String
+  context    String?
+  trigger    String?
+  intensity  Int?
+  duration   Int?
+  mediaUrl   String?
+  createdAt  DateTime @default(now())
+}
+
+model Specialist {
+  id         String           @id @default(cuid())
+  email      String           @unique
+  name       String
+  photoUrl   String?
+  specialty  String
+  bio        String?
+  diplomaUrl String?
+  status     SpecialistStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  articles   Article[]
+}
+
+model Article {
+  id           String     @id @default(cuid())
+  specialistId String
+  specialist   Specialist @relation(fields: [specialistId], references: [id])
+  title        String
+  content      String
+  language     String     @default("ru")
+  published    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+}
+
+model Subscription {
+  id        String           @id @default(cuid())
+  userId    String           @unique
+  user      User             @relation(fields: [userId], references: [id])
+  plan      SubscriptionPlan @default(FREE)
+  status    String           @default("active")
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  role      AdminRole @default(ADMIN)
+  createdAt DateTime  @default(now())
+}
+
+enum UserRole {
+  MAMA
+  SPECIALIST
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  DEVELOPER
+}
+
+enum SpecialistStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubscriptionPlan {
+  FREE
+  MONTHLY
+  YEARLY
+}
