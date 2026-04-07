@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "prisma": "^6.6.0"
   },
   "devDependencies": {
-    "prisma": "^6.6.0",
     "typescript": "^5.4.5"
   }
 }
