@@ -11,8 +11,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,7 +20,6 @@ import { useProfile } from "../../hooks/useProfile";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { API_URL, APP_VERSION, STORAGE_KEYS } from "../../lib/constants";
 import { scheduleDailyReminder, cancelAllNotifications } from "../../lib/notifications";
-import type { RootStackParamList } from "../../navigation/AppNavigator";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -30,7 +27,6 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const { user: authUser, signOut } = useAuthContext();
   const { language, setLanguage } = useLanguage();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, loading, refetch } = useProfile();
 
   // Child info form state (local, synced from API)
@@ -106,11 +102,10 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           await signOut();
-          navigation.replace("Auth");
         },
       },
     ]);
-  }, [signOut, navigation, t]);
+  }, [signOut, t]);
 
   // ── Notifications toggle ─────────────────────────────────────────────────
   const handleNotificationsToggle = useCallback(async (value: boolean) => {

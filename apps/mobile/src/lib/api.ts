@@ -1,7 +1,7 @@
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Config } from "./config";
 import { STORAGE_KEYS } from "./constants";
-import { get } from "./storage";
 
 export const api = axios.create({
   baseURL: Config.apiUrl,
@@ -11,11 +11,11 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// Attach auth token from storage on every request
+// Attach userId from storage on every request
 api.interceptors.request.use(async (config) => {
-  const token = await get<string>(STORAGE_KEYS.AUTH_TOKEN);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const userId = await AsyncStorage.getItem(STORAGE_KEYS.USER_ID);
+  if (userId) {
+    config.headers.Authorization = `Bearer ${userId}`;
   }
   if (Config.isDev) {
     console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
