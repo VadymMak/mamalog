@@ -30,8 +30,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "mamalog-app"
+        "projectId": "dd7aaf1a-0376-4815-b70e-f92af2f43992"
       }
-    }
+    },
+    "owner": "vadymmak"
   }
 }
