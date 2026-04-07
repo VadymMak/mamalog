@@ -12,4 +12,5 @@ export const STORAGE_KEYS = {
   LANGUAGE: "@mamalog/language",
   AUTH_TOKEN: "@mamalog/auth_token",
   USER: "@mamalog/user",
+  ONBOARDING_COMPLETE: "@mamalog/onboarding_complete",
 } as const;

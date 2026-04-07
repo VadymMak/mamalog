@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import ArticleCard, { Article } from "../../components/library/ArticleCard";
 import SpecialistCard, { Specialist } from "../../components/library/SpecialistCard";
-import { API_BASE_URL } from "../../lib/constants";
+import { API_URL } from "../../lib/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_GAP = spacing.sm;
@@ -158,7 +158,7 @@ export default function LibraryScreen() {
 
       const fetchSpecialists = async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/specialist`);
+          const res = await fetch(`${API_URL}/api/specialist`);
           const json = await res.json();
           if (active && json.specialists?.length) {
             setSpecialists(json.specialists);

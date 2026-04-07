@@ -1,24 +1,43 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthContext } from "../context/AuthContext";
 import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 import SOSScreen from "../screens/sos/SOSScreen";
+import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
+import { STORAGE_KEYS } from "../lib/constants";
 
 export type RootStackParamList = {
-  Auth: undefined;
+  Onboarding: undefined;
+  Auth: { initialScreen?: "Login" | "Register" } | undefined;
   Main: undefined;
   SOS: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuthContext();
+type InitialRoute = "Onboarding" | "Auth" | "Main";
 
-  if (isLoading) {
+export default function AppNavigator() {
+  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
+
+  useEffect(() => {
+    const resolve = async () => {
+      const onboardingDone = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE);
+      if (onboardingDone !== "true") {
+        setInitialRoute("Onboarding");
+        return;
+      }
+      setInitialRoute(isAuthenticated ? "Main" : "Auth");
+    };
+    if (!authLoading) resolve();
+  }, [authLoading, isAuthenticated]);
+
+  if (authLoading || initialRoute === null) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#E53E3E" />
@@ -28,17 +47,17 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="Main" component={MainNavigator} />
-        ) : (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        )}
-        {/* SOS always accessible regardless of auth state */}
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={initialRoute}
+      >
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Auth" component={AuthNavigator} />
+        <Stack.Screen name="Main" component={MainNavigator} />
         <Stack.Screen
           name="SOS"
           component={SOSScreen}
-          options={{ presentation: "modal", headerShown: false }}
+          options={{ presentation: "modal" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
