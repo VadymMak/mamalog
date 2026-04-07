@@ -17,18 +17,10 @@ api.interceptors.request.use(async (config) => {
   if (userId) {
     config.headers.Authorization = `Bearer ${userId}`;
   }
-  if (Config.isDev) {
-    console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  }
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (Config.isDev) {
-      console.warn("[API] Error:", error?.response?.status, error?.message);
-    }
-    return Promise.reject(error);
-  }
+  (error: unknown) => Promise.reject(error)
 );
