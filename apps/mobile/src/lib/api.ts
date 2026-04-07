@@ -1,9 +1,10 @@
 import axios from "axios";
-import { API_URL, STORAGE_KEYS } from "./constants";
+import { Config } from "./config";
+import { STORAGE_KEYS } from "./constants";
 import { get } from "./storage";
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: Config.apiUrl,
   headers: {
     "Content-Type": "application/json",
   },
@@ -16,5 +17,18 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  if (Config.isDev) {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+  }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (Config.isDev) {
+      console.warn("[API] Error:", error?.response?.status, error?.message);
+    }
+    return Promise.reject(error);
+  }
+);
