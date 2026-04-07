@@ -1,0 +1,9 @@
+{
+  "name": "desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Electron admin panel — placeholder",
+  "scripts": {
+    "dev": "echo 'Electron app not scaffolded yet'"
+  }
+}
