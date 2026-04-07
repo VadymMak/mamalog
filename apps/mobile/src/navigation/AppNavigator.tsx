@@ -30,29 +30,21 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-type InitialRoute = "Onboarding" | "Auth" | "Main";
-
 export default function AppNavigator() {
   const { isAuthenticated, isLoading: authLoading } = useAuthContext();
-  const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const resolve = async () => {
-      const onboardingDone = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE);
-      if (onboardingDone !== "true") {
-        setInitialRoute("Onboarding");
-        return;
-      }
-      setInitialRoute(isAuthenticated ? "Main" : "Auth");
-    };
-    if (!authLoading) resolve();
-  }, [authLoading, isAuthenticated]);
+    AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE).then((val) => {
+      setOnboardingDone(val === "true");
+    });
+  }, []);
 
   useEffect(() => {
     registerForPushNotifications();
   }, []);
 
-  if (authLoading || initialRoute === null) {
+  if (authLoading || onboardingDone === null) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#E53E3E" />
@@ -62,18 +54,21 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName={initialRoute}
-      >
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="Auth" component={AuthNavigator} />
-        <Stack.Screen name="Main" component={MainNavigator} />
-        <Stack.Screen
-          name="SOS"
-          component={SOSScreen}
-          options={{ presentation: "modal" }}
-        />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!onboardingDone ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : !isAuthenticated ? (
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen
+              name="SOS"
+              component={SOSScreen}
+              options={{ presentation: "modal" }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
