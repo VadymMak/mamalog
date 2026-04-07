@@ -27,6 +27,7 @@ async function getOwnedBehavior(
   | {
       ok: true;
       behavior: Awaited<ReturnType<typeof prisma.behaviorLog.findUnique>> & object;
+      response?: undefined;
     }
   | { ok: false; response: NextResponse }
 > {

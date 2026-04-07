@@ -8,7 +8,7 @@ async function getOwnedEntry(
   id: string,
   userId: string
 ): Promise<
-  | { ok: true; entry: Awaited<ReturnType<typeof prisma.logEntry.findUnique>> & object }
+  | { ok: true; entry: Awaited<ReturnType<typeof prisma.logEntry.findUnique>> & object; response?: undefined }
   | { ok: false; response: NextResponse }
 > {
   const entry = await prisma.logEntry.findUnique({

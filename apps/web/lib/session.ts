@@ -2,8 +2,8 @@ import { getServerSession, Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 
-type SessionOk = { ok: true; session: Session };
-type SessionFail = { ok: false; response: NextResponse };
+type SessionOk = { ok: true; session: Session; response?: undefined };
+type SessionFail = { ok: false; response: NextResponse; session?: undefined };
 type SessionResult = SessionOk | SessionFail;
 
 export async function getRequiredSession(): Promise<SessionResult> {

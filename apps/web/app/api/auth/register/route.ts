@@ -58,36 +58,30 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user + settings + subscription in one transaction
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          email: email.trim().toLowerCase(),
-          name: name.trim(),
-          passwordHash,
-          role: "MAMA",
-          language,
-        },
-      });
-
-      await tx.userSettings.create({
-        data: {
-          userId: created.id,
-          language,
-        },
-      });
-
-      await tx.subscription.create({
-        data: {
-          userId: created.id,
-          plan: "FREE",
-        },
-      });
-
-      return created;
+    // Create user, then settings and subscription with manual rollback on failure
+    const user = await prisma.user.create({
+      data: {
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        passwordHash: hashedPassword,
+        role: "MAMA",
+        language: language || "ru",
+      },
     });
+
+    try {
+      await prisma.userSettings.create({
+        data: { userId: user.id, language: language || "ru" },
+      });
+      await prisma.subscription.create({
+        data: { userId: user.id, plan: "FREE" },
+      });
+    } catch (e) {
+      await prisma.user.delete({ where: { id: user.id } });
+      throw e;
+    }
 
     return NextResponse.json(
       {
