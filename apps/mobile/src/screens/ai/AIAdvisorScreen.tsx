@@ -11,6 +11,7 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
+  Clipboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,18 +42,40 @@ interface ApiChatResponse {
   };
 }
 
+interface LogEntry {
+  id: string;
+  moodScore: number;
+  emotions: string[];
+  notes: string | null;
+  date: string;
+}
+
+interface LogsApiResponse {
+  success: boolean;
+  data: LogEntry[];
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FREE_DAILY_LIMIT = 3;
-const __DEV__ = process.env.NODE_ENV === "development";
+
+const SUGGESTIONS = [
+  "Какие паттерны вы видите?",
+  "Что делать при истерике?",
+  "Как улучшить сон ребёнка?",
+  "Как справиться со стрессом маме?",
+];
 
 function todayKey(): string {
-  const today = new Date().toISOString().split("T")[0] ?? "unknown";
-  return `@mamalog/ai_count_${today}`;
+  return `@mamalog/ai_count_${new Date().toISOString().split("T")[0] ?? "unknown"}`;
 }
 
 function makeId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
 }
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
@@ -81,7 +104,7 @@ function TypingDots() {
   }, []);
 
   return (
-    <View style={styles.bubbleAI}>
+    <View style={[styles.bubbleAI, styles.typingBubble]}>
       <View style={styles.dotsRow}>
         {dots.map((dot, i) => (
           <Animated.View key={i} style={[styles.dot, { opacity: dot }]} />
@@ -95,24 +118,44 @@ function TypingDots() {
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
-  const time = message.timestamp.toLocaleTimeString("ru", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    Clipboard.setString(message.text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <View style={[styles.messageRow, isUser ? styles.messageRowUser : styles.messageRowAI]}>
-      <View style={[isUser ? styles.bubbleUser : styles.bubbleAI]}>
+      <View style={isUser ? styles.bubbleUser : styles.bubbleAI}>
+        {!isUser && (
+          <View style={styles.aiBadgeRow}>
+            <View style={styles.aiBadge}>
+              <Text style={styles.aiBadgeText}>AI</Text>
+            </View>
+          </View>
+        )}
         <Text style={isUser ? styles.bubbleUserText : styles.bubbleAIText}>
           {message.text}
         </Text>
         <View style={styles.messageMeta}>
-          <Text style={[styles.messageTime, isUser && styles.messageTimeUser]}>{time}</Text>
-          <View style={[styles.langBadge, isUser && styles.langBadgeUser]}>
-            <Text style={[styles.langBadgeText, isUser && styles.langBadgeTextUser]}>
-              {message.language.toUpperCase()}
-            </Text>
-          </View>
+          <Text style={[styles.messageTime, isUser && styles.messageTimeUser]}>
+            {formatTime(message.timestamp)}
+          </Text>
+          {!isUser && (
+            <TouchableOpacity
+              onPress={handleCopy}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={copied ? "checkmark" : "copy-outline"}
+                size={13}
+                color={copied ? colors.success : colors.textHint}
+              />
+            </TouchableOpacity>
+          )}
           {__DEV__ && message.tokensUsed !== undefined && (
             <Text style={styles.tokensBadge}>{message.tokensUsed}t</Text>
           )}
@@ -122,38 +165,79 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── Limit banner ─────────────────────────────────────────────────────────────
 
-interface EmptyStateProps {
-  onSuggestion: (text: string) => void;
+function LimitBanner({ count }: { count: number }) {
+  const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
+
+  function showSubscriptionAlert() {
+    Alert.alert(
+      "Подписка Mamalog",
+      "Безлимитный доступ к AI советнику:\n\n• Месячный план — 299 ₽/мес\n• Годовой план — 1 990 ₽/год\n\nСкоро доступно в приложении.",
+      [{ text: "Понятно", style: "default" }]
+    );
+  }
+
+  if (remaining === 0) {
+    return (
+      <View style={styles.limitBannerEmpty}>
+        <Text style={styles.limitBannerText}>
+          Дневной лимит исчерпан. Для неограниченного доступа оформите подписку.
+        </Text>
+        <TouchableOpacity onPress={showSubscriptionAlert} activeOpacity={0.8}>
+          <Text style={styles.limitBannerLink}>Узнать о подписке →</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.limitBanner}>
+      <Ionicons name="sparkles-outline" size={13} color={colors.primary} />
+      <Text style={styles.limitBannerCount}>
+        Осталось {remaining} из {FREE_DAILY_LIMIT} бесплатных сообщений
+      </Text>
+    </View>
+  );
 }
 
-function EmptyState({ onSuggestion }: EmptyStateProps) {
-  const { t } = useTranslation();
-  const suggestions = [
-    t("ai.suggestion1"),
-    t("ai.suggestion2"),
-    t("ai.suggestion3"),
-  ];
+// ─── Suggestion chips ─────────────────────────────────────────────────────────
 
+interface SuggestionsProps {
+  onSend: (text: string) => void;
+  disabled: boolean;
+}
+
+function SuggestionChips({ onSend, disabled }: SuggestionsProps) {
+  return (
+    <View style={styles.chipsRow}>
+      {SUGGESTIONS.map((s) => (
+        <TouchableOpacity
+          key={s}
+          style={[styles.chip, disabled && styles.chipDisabled]}
+          onPress={() => !disabled && onSend(s)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.chipText, disabled && styles.chipTextDisabled]} numberOfLines={1}>
+            {s}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState({ onSend }: { onSend: (text: string) => void }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIllustration}>
         <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.primaryLight} />
       </View>
       <Text style={styles.emptyTitle}>{t("ai.emptyTitle")}</Text>
-      <View style={styles.suggestionsRow}>
-        {suggestions.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={styles.suggestionChip}
-            onPress={() => onSuggestion(s)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.suggestionText}>{s}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <SuggestionChips onSend={onSend} disabled={false} />
     </View>
   );
 }
@@ -167,6 +251,7 @@ export default function AIAdvisorScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [dailyCount, setDailyCount] = useState(0);
   const listRef = useRef<FlatList<Message>>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -174,29 +259,48 @@ export default function AIAdvisorScreen() {
   }, []);
 
   useEffect(() => {
+    get<number>(todayKey()).then((c) => setDailyCount(c ?? 0));
+  }, []);
+
+  useEffect(() => {
     if (messages.length > 0) scrollToBottom();
   }, [messages, isThinking, scrollToBottom]);
 
-  async function checkDailyLimit(): Promise<boolean> {
-    const count = (await get<number>(todayKey())) ?? 0;
-    return count < FREE_DAILY_LIMIT;
-  }
-
-  async function incrementDailyCount() {
-    const count = (await get<number>(todayKey())) ?? 0;
-    await set(todayKey(), count + 1);
+  async function fetchRecentLogs(): Promise<string[]> {
+    try {
+      const res = await api.get<LogsApiResponse>("/api/log", { params: { limit: 3 } });
+      return (res.data.data ?? []).map(
+        (e) =>
+          `[${new Date(e.date).toLocaleDateString("ru")}] Настроение: ${e.moodScore}/10` +
+          (e.emotions.length ? `, эмоции: ${e.emotions.join(", ")}` : "") +
+          (e.notes ? `, заметки: ${e.notes}` : "")
+      );
+    } catch {
+      return [];
+    }
   }
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
-    const allowed = await checkDailyLimit();
-    if (!allowed) {
-      Alert.alert(t("ai.limitTitle"), t("ai.limitMessage"), [
-        { text: t("ai.limitCancel"), style: "cancel" },
-        { text: t("ai.limitUpgrade"), onPress: () => { /* TODO: paywall */ } },
-      ]);
+    if (dailyCount >= FREE_DAILY_LIMIT) {
+      Alert.alert(
+        t("ai.limitTitle"),
+        "Дневной лимит исчерпан. Для неограниченного доступа оформите подписку.",
+        [
+          { text: t("ai.limitCancel"), style: "cancel" },
+          {
+            text: "Узнать о подписке",
+            onPress: () =>
+              Alert.alert(
+                "Подписка Mamalog",
+                "• Месячный план — 299 ₽/мес\n• Годовой план — 1 990 ₽/год\n\nСкоро доступно в приложении.",
+                [{ text: "Понятно" }]
+              ),
+          },
+        ]
+      );
       return;
     }
 
@@ -212,11 +316,17 @@ export default function AIAdvisorScreen() {
     setInput("");
     setIsThinking(true);
 
+    const newCount = dailyCount + 1;
+    setDailyCount(newCount);
+    await set(todayKey(), newCount);
+
     try {
-      await incrementDailyCount();
+      const recentLogs = await fetchRecentLogs();
+
       const res = await api.post<ApiChatResponse>("/api/ai/chat", {
         message: trimmed,
         language,
+        context: { recentLogs },
       });
 
       const aiMsg: Message = {
@@ -231,14 +341,16 @@ export default function AIAdvisorScreen() {
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
       Alert.alert(t("common.error"), t("ai.errorSend"));
-      // Remove user message on failure so they can retry
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      setDailyCount((c) => Math.max(0, c - 1));
+      await set(todayKey(), Math.max(0, newCount - 1));
     } finally {
       setIsThinking(false);
     }
   }
 
-  const canSend = input.trim().length > 0 && !isThinking;
+  const atLimit = dailyCount >= FREE_DAILY_LIMIT;
+  const canSend = input.trim().length > 0 && !isThinking && !atLimit;
 
   return (
     <SafeAreaView style={commonStyles.screen}>
@@ -248,6 +360,9 @@ export default function AIAdvisorScreen() {
         <Text style={styles.headerSubtitle}>{t("ai.subtitle")}</Text>
       </View>
 
+      {/* Daily limit banner */}
+      <LimitBanner count={dailyCount} />
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -255,7 +370,7 @@ export default function AIAdvisorScreen() {
       >
         {/* Messages */}
         {messages.length === 0 && !isThinking ? (
-          <EmptyState onSuggestion={(s) => { setInput(s); }} />
+          <EmptyState onSend={sendMessage} />
         ) : (
           <FlatList
             ref={listRef}
@@ -269,18 +384,24 @@ export default function AIAdvisorScreen() {
           />
         )}
 
+        {/* Suggestion chips above input (when chat started) */}
+        {messages.length > 0 && !atLimit && (
+          <SuggestionChips onSend={sendMessage} disabled={isThinking} />
+        )}
+
         {/* Input row */}
         <View style={styles.inputRow}>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, atLimit && styles.textInputDisabled]}
             value={input}
             onChangeText={setInput}
-            placeholder={t("ai.placeholder")}
+            placeholder={atLimit ? "Дневной лимит исчерпан" : t("ai.placeholder")}
             placeholderTextColor={colors.textHint}
             multiline
             maxLength={1000}
             numberOfLines={4}
             returnKeyType="default"
+            editable={!atLimit}
           />
           <TouchableOpacity
             style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
@@ -304,6 +425,7 @@ export default function AIAdvisorScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+
   header: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -314,6 +436,32 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.h2, color: colors.textPrimary },
   headerSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+
+  // Limit banner
+  limitBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: "#EDE9FE",
+  },
+  limitBannerCount: { ...typography.caption, color: colors.primary, fontWeight: "600" },
+  limitBannerEmpty: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: "#FFF5F5",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FED7D7",
+    gap: 2,
+  },
+  limitBannerText: { ...typography.caption, color: colors.error },
+  limitBannerLink: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    marginTop: 2,
+  },
 
   // Messages list
   messagesList: {
@@ -347,8 +495,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  typingBubble: {
+    marginLeft: spacing.md,
+    marginBottom: spacing.xs,
+  },
   bubbleUserText: { ...typography.body, color: colors.white, lineHeight: 22 },
   bubbleAIText: { ...typography.body, color: colors.textPrimary, lineHeight: 22 },
+
+  // AI badge
+  aiBadgeRow: { marginBottom: 4 },
+  aiBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    alignSelf: "flex-start",
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
 
   // Message meta
   messageMeta: {
@@ -359,15 +527,6 @@ const styles = StyleSheet.create({
   },
   messageTime: { ...typography.caption, color: colors.textHint },
   messageTimeUser: { color: "rgba(255,255,255,0.65)" },
-  langBadge: {
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  langBadgeUser: { backgroundColor: "rgba(255,255,255,0.2)" },
-  langBadgeText: { ...typography.caption, color: colors.textSecondary, fontWeight: "600" },
-  langBadgeTextUser: { color: colors.white },
   tokensBadge: { ...typography.caption, color: colors.textHint },
 
   // Typing dots
@@ -378,6 +537,32 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
   },
+
+  // Suggestion chips
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  chip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: "#EDE9FE",
+  },
+  chipDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  chipText: { ...typography.caption, color: colors.primary, fontWeight: "600" },
+  chipTextDisabled: { color: colors.textHint },
 
   // Empty state
   emptyContainer: {
@@ -402,22 +587,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
   },
-  suggestionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  suggestionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: "#EDE9FE",
-  },
-  suggestionText: { ...typography.bodySmall, color: colors.primary, fontWeight: "600" },
 
   // Input row
   inputRow: {
@@ -441,6 +610,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: colors.background,
     maxHeight: 100,
+  },
+  textInputDisabled: {
+    backgroundColor: colors.surfaceSecondary,
+    color: colors.textHint,
   },
   sendBtn: {
     width: 44,
