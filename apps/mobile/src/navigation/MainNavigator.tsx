@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DiaryScreen from "../screens/diary/DiaryScreen";
 import NewLogScreen from "../screens/diary/NewLogScreen";
 import LogDetailScreen from "../screens/diary/LogDetailScreen";
+import ProfileScreen from "../screens/profile/ProfileScreen";
 import BehaviorScreen from "../screens/behavior/BehaviorScreen";
 import NewBehaviorScreen from "../screens/behavior/NewBehaviorScreen";
 import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
@@ -30,6 +31,7 @@ export type DiaryStackParamList = {
   DiaryHome: undefined;
   NewLog: undefined;
   LogDetail: { id: string };
+  Profile: undefined;
 };
 
 export type BehaviorStackParamList = {
@@ -56,6 +58,33 @@ function SOSButton() {
   );
 }
 
+function DiaryHomeHeaderRight() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<DiaryStackParamList>>();
+  const rootNavigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <View style={styles.headerButtons}>
+      <TouchableOpacity
+        style={styles.headerBtn}
+        onPress={() => navigation.navigate("Profile")}
+        activeOpacity={0.8}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="person-circle-outline" size={26} color={colors.primary} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.sosButton}
+        onPress={() => rootNavigation.navigate("SOS")}
+        activeOpacity={0.8}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="alert-circle" size={28} color={colors.sos} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function DiaryStackNavigator() {
   const { t } = useTranslation();
   return (
@@ -69,7 +98,10 @@ function DiaryStackNavigator() {
       <DiaryStack.Screen
         name="DiaryHome"
         component={DiaryScreen}
-        options={{ title: t("tabs.diary") }}
+        options={{
+          title: t("tabs.diary"),
+          headerRight: () => <DiaryHomeHeaderRight />,
+        }}
       />
       <DiaryStack.Screen
         name="NewLog"
@@ -80,6 +112,11 @@ function DiaryStackNavigator() {
         name="LogDetail"
         component={LogDetailScreen}
         options={{ title: t("diary.entry") }}
+      />
+      <DiaryStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: t("profile.title") }}
       />
     </DiaryStack.Navigator>
   );
@@ -191,6 +228,14 @@ export default function MainNavigator() {
 }
 
 const styles = StyleSheet.create({
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerBtn: {
+    padding: spacing.xs,
+    marginRight: 2,
+  },
   sosButton: {
     marginRight: spacing.sm,
     padding: spacing.xs,
