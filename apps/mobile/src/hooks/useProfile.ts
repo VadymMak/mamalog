@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { useAuthContext } from "../context/AuthContext";
-import { API_URL } from "../lib/constants";
+import { api } from "../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +24,12 @@ export interface ProfileUser {
   };
 }
 
+interface ApiResponse {
+  success: boolean;
+  data: ProfileUser;
+  error?: string;
+}
+
 interface UseProfileResult {
   user: ProfileUser | null;
   loading: boolean;
@@ -35,34 +40,26 @@ interface UseProfileResult {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useProfile(): UseProfileResult {
-  const { user: authUser } = useAuthContext();
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
-    if (!authUser?.id) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/user`, {
-        headers: { Authorization: `Bearer ${authUser.id}` },
-      });
-      const json = await res.json();
-      if (json.success) {
-        setUser(json.data as ProfileUser);
+      const res = await api.get<ApiResponse>("/api/user");
+      if (res.data.success) {
+        setUser(res.data.data);
       } else {
-        setError(json.error ?? "Failed to load profile");
+        setError(res.data.error ?? "Failed to load profile");
       }
     } catch {
       setError("Network error");
     } finally {
       setLoading(false);
     }
-  }, [authUser?.id]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

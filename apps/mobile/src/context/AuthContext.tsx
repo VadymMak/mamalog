@@ -48,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await remove(STORAGE_KEYS.USER);
     await remove(STORAGE_KEYS.AUTH_TOKEN);
+    await remove(STORAGE_KEYS.USER_ID);
+    // STORAGE_KEYS.ONBOARDING_COMPLETE is intentionally kept
     setUser(null);
   }
 

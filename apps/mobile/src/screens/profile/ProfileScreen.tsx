@@ -15,8 +15,9 @@ import { useTranslation } from "react-i18next";
 import { useAuthContext } from "../../context/AuthContext";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useProfile } from "../../hooks/useProfile";
+import { api } from "../../lib/api";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
-import { API_URL, APP_VERSION } from "../../lib/constants";
+import { APP_VERSION } from "../../lib/constants";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export default function ProfileScreen() {
   const [childAge, setChildAge] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   // Sync form when API data arrives
   React.useEffect(() => {
     if (user) {
@@ -53,33 +55,22 @@ export default function ProfileScreen() {
 
   // ── Save child info ──────────────────────────────────────────────────────
   const handleSaveChild = useCallback(async () => {
-    if (!authUser?.id) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/user`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authUser.id}`,
-        },
-        body: JSON.stringify({
-          childName: childName.trim() || null,
-          childAge: childAge ? parseInt(childAge, 10) : null,
-          diagnosis: diagnosis.trim() || null,
-        }),
+      await api.patch("/api/user", {
+        childName: childName.trim() || null,
+        childAge: childAge ? parseInt(childAge, 10) : null,
+        diagnosis: diagnosis.trim() || null,
       });
-      const json = await res.json();
-      if (json.success) {
-        refetch();
-      } else {
-        Alert.alert(t("common.error"), t("profile.saveError"));
-      }
+      refetch();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
     } catch {
       Alert.alert(t("common.error"), t("profile.saveError"));
     } finally {
       setSaving(false);
     }
-  }, [authUser?.id, childName, childAge, diagnosis, refetch, t]);
+  }, [childName, childAge, diagnosis, refetch, t]);
 
   // ── Logout ───────────────────────────────────────────────────────────────
   const handleLogout = useCallback(() => {
@@ -193,6 +184,12 @@ export default function ProfileScreen() {
                 returnKeyType="done"
               />
             </View>
+            {saveSuccess && (
+              <View style={styles.successToast}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={styles.successToastText}>Сохранено</Text>
+              </View>
+            )}
             <TouchableOpacity
               style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleSaveChild}
@@ -438,6 +435,24 @@ const styles = StyleSheet.create({
   saveBtnText: {
     ...typography.button,
     color: colors.white,
+  },
+  successToast: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+    backgroundColor: "#F0FFF4",
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: "#9AE6B4",
+  },
+  successToastText: {
+    ...typography.caption,
+    color: colors.success,
+    fontWeight: "600",
   },
   // Settings rows
   settingRow: {

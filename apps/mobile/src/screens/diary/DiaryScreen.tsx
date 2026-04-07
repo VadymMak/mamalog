@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import { useAuthContext } from "../../context/AuthContext";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import type { DiaryStackParamList } from "../../navigation/MainNavigator";
@@ -259,6 +260,13 @@ function QuickActions({ onNewLog }: { onNewLog: () => void }) {
 export default function DiaryScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<DiaryStackParamList>>();
+  const { user } = useAuthContext();
+
+  const initials = (user?.name ?? user?.email ?? "?")
+    .split(" ")
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .slice(0, 2)
+    .join("");
 
   const [entries, setEntries] = useState<LogEntryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,8 +301,17 @@ export default function DiaryScreen() {
   return (
     <SafeAreaView style={commonStyles.screen}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t("diary.title")}</Text>
-        <Text style={styles.headerDate}>{formatDate(new Date().toISOString())}</Text>
+        <View>
+          <Text style={styles.headerTitle}>{t("diary.title")}</Text>
+          <Text style={styles.headerDate}>{formatDate(new Date().toISOString())}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.avatarBtn}
+          onPress={() => navigation.navigate("Profile")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.avatarText}>{initials}</Text>
+        </TouchableOpacity>
       </View>
 
       <MoodSection selectedScore={selectedMood} onSelect={setSelectedMood} />
@@ -344,6 +361,9 @@ export default function DiaryScreen() {
 
 const styles = StyleSheet.create({
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
@@ -357,6 +377,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
     textTransform: "capitalize",
+  },
+  avatarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.sm,
+  },
+  avatarText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: "700",
+    fontSize: 13,
   },
   section: {
     backgroundColor: colors.surface,
