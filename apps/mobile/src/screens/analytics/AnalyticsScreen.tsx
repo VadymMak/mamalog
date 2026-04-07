@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -167,17 +167,16 @@ interface MoodChartProps {
 function MoodChartSection({ entries, period }: MoodChartProps) {
   const { t } = useTranslation();
 
-  if (entries.length === 0) {
+  if (entries.length < 2) {
     return (
       <View style={commonStyles.card}>
         <SectionHeader title={t("analytics.moodChart")} />
-        <Text style={styles.noDataText}>{t("analytics.noData")}</Text>
+        <Text style={styles.noDataText}>Недостаточно данных</Text>
       </View>
     );
   }
 
-  // Ensure at least 2 points (chart-kit requirement)
-  const paddedEntries = entries.length === 1 ? [entries[0], entries[0]] : entries;
+  const paddedEntries = entries;
   const step = period > 14 ? 4 : period > 7 ? 2 : 1;
   const labels = paddedEntries.map((e, i) =>
     i % step === 0 ? formatShortDate(e.date) : ""
@@ -401,10 +400,21 @@ export default function AnalyticsScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Cache AI insights per period to avoid refetching
+  const aiCache = useRef<Map<Period, string[]>>(new Map());
+
   const PERIODS: Period[] = [7, 14, 30];
 
-  async function fetchAiInsights(entries: LogEntry[]) {
-    if (entries.length === 0) return;
+  async function fetchAiInsights(entries: LogEntry[], p: Period) {
+    if (entries.length < 3) return;
+
+    // Return cached result if available
+    const cached = aiCache.current.get(p);
+    if (cached) {
+      setAiInsights(cached);
+      return;
+    }
+
     setAiLoading(true);
     try {
       const res = await api.post<AiChatResponse>("/api/ai/chat", {
@@ -417,6 +427,7 @@ export default function AnalyticsScreen() {
         .map((line) => line.replace(/^[\s•\-*\d.]+/, "").trim())
         .filter((line) => line.length > 3)
         .slice(0, 3);
+      aiCache.current.set(p, parsed);
       setAiInsights(parsed);
     } catch {
       // Silently fail — insights are non-critical
@@ -464,7 +475,7 @@ export default function AnalyticsScreen() {
           if (active) {
             setLoading(false);
             // Non-blocking AI fetch after main data loaded
-            fetchAiInsights(entries);
+            fetchAiInsights(entries, period);
           }
         } catch {
           if (active) {
@@ -528,9 +539,24 @@ export default function AnalyticsScreen() {
           <Text style={[commonStyles.emptyStateText, { color: colors.error }]}>{error}</Text>
         </View>
       ) : logEntries.length < 3 ? (
-        <View style={commonStyles.emptyState}>
+        <View style={styles.motivationalEmpty}>
           <Text style={styles.emptyEmoji}>📊</Text>
-          <Text style={commonStyles.emptyStateText}>{t("analytics.minData")}</Text>
+          <Text style={styles.emptyTitle}>{t("analytics.minData")}</Text>
+          <Text style={styles.emptySubtitle}>
+            {t("analytics.entriesProgress", { count: logEntries.length, total: 3 })}
+          </Text>
+          {/* Progress bar */}
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${Math.round((logEntries.length / 3) * 100)}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressLabel}>
+            {logEntries.length} / 3
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -665,8 +691,43 @@ const styles = StyleSheet.create({
     maxWidth: 120,
   },
 
-  // Empty state
-  emptyEmoji: { fontSize: 48, marginBottom: spacing.sm },
+  // Empty / motivational state
+  motivationalEmpty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyEmoji: { fontSize: 48, marginBottom: spacing.xs },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  progressTrack: {
+    width: "100%",
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: borderRadius.full,
+    overflow: "hidden",
+    marginTop: spacing.xs,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+  },
+  progressLabel: {
+    ...typography.caption,
+    color: colors.textHint,
+    fontWeight: "600",
+  },
 
   // AI insights
   insightsHeader: {
