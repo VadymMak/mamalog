@@ -77,6 +77,12 @@ importers:
       '@auth/prisma-adapter':
         specifier: ^2.11.1
         version: 2.11.1(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))
+      '@mamalog/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -127,15 +133,15 @@ importers:
   packages/database:
     dependencies:
       '@prisma/client':
-        specifier: ^6.6.0
+        specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
-      prisma:
-        specifier: ^6.6.0
-        version: 6.19.3(typescript@5.9.3)
     devDependencies:
+      prisma:
+        specifier: ^6.19.3
+        version: 6.19.3(typescript@5.9.3)
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
