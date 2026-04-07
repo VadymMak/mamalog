@@ -13,4 +13,10 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+config.resolver.blockList = [
+  new RegExp(
+    path.resolve(workspaceRoot, 'node_modules/.pnpm') + '/.*'
+  ),
+];
+
 module.exports = config;
