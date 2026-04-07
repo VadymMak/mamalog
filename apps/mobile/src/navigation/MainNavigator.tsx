@@ -16,6 +16,7 @@ import NewBehaviorScreen from "../screens/behavior/NewBehaviorScreen";
 import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
 import AnalyticsScreen from "../screens/analytics/AnalyticsScreen";
 import LibraryScreen from "../screens/library/LibraryScreen";
+import ArticleDetailScreen from "../screens/library/ArticleDetailScreen";
 import type { RootStackParamList } from "./AppNavigator";
 import { colors, spacing } from "../theme";
 
@@ -39,9 +40,15 @@ export type BehaviorStackParamList = {
   NewBehavior: { logEntryId?: string };
 };
 
+export type LibraryStackParamList = {
+  LibraryHome: undefined;
+  ArticleDetail: { articleId: string };
+};
+
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DiaryStack = createNativeStackNavigator<DiaryStackParamList>();
 const BehaviorStack = createNativeStackNavigator<BehaviorStackParamList>();
+const LibraryStack = createNativeStackNavigator<LibraryStackParamList>();
 
 function SOSButton() {
   const navigation =
@@ -119,6 +126,29 @@ function DiaryStackNavigator() {
         options={{ title: t("profile.title") }}
       />
     </DiaryStack.Navigator>
+  );
+}
+
+function LibraryStackNavigator() {
+  return (
+    <LibraryStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.textPrimary,
+        headerRight: () => <SOSButton />,
+      }}
+    >
+      <LibraryStack.Screen
+        name="LibraryHome"
+        component={LibraryScreen}
+        options={{ headerShown: false }}
+      />
+      <LibraryStack.Screen
+        name="ArticleDetail"
+        component={ArticleDetailScreen}
+        options={{ headerShown: false }}
+      />
+    </LibraryStack.Navigator>
   );
 }
 
@@ -214,9 +244,10 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="LibraryTab"
-        component={LibraryScreen}
+        component={LibraryStackNavigator}
         options={{
           title: t("tabs.library"),
+          headerShown: false,
           tabBarLabel: t("tabs.library"),
           tabBarIcon: ({ color, size }: TabIconProps) => (
             <Ionicons name="book-outline" size={size} color={color} />

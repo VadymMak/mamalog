@@ -3,23 +3,12 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import { useAuthContext } from "../context/AuthContext";
 import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 import SOSScreen from "../screens/sos/SOSScreen";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
 import { STORAGE_KEYS } from "../lib/constants";
-import { registerForPushNotifications } from "../lib/notifications";
-
-// Set notification handler once at module level
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -38,10 +27,6 @@ export default function AppNavigator() {
     AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE).then((val) => {
       setOnboardingDone(val === "true");
     });
-  }, []);
-
-  useEffect(() => {
-    registerForPushNotifications();
   }, []);
 
   if (authLoading || onboardingDone === null) {

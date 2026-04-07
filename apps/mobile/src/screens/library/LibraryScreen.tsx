@@ -4,82 +4,27 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   TextInput,
   TouchableOpacity,
   Dimensions,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
-import ArticleCard, { Article } from "../../components/library/ArticleCard";
+import ArticleCard from "../../components/library/ArticleCard";
 import SpecialistCard, { Specialist } from "../../components/library/SpecialistCard";
+import { ARTICLES } from "../../data/articles";
+import type { Article } from "../../components/library/ArticleCard";
 import { API_URL } from "../../lib/constants";
+import type { LibraryStackParamList } from "../../navigation/MainNavigator";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_GAP = spacing.sm;
 const HORIZONTAL_PADDING = spacing.md * 2;
 const CARD_WIDTH = (SCREEN_WIDTH - HORIZONTAL_PADDING - CARD_GAP) / 2;
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const MOCK_ARTICLES: Article[] = [
-  {
-    id: "1",
-    title: "Сенсорные техники для снижения перегрузки",
-    category: "Сенсорная интеграция",
-    author: "Е. Романова",
-    specialty: "Эрготерапевт",
-    readTime: 5,
-    color: "#6B46C1",
-  },
-  {
-    id: "2",
-    title: "Альтернативная коммуникация для неговорящих детей",
-    category: "Речевое развитие",
-    author: "М. Ковалёва",
-    specialty: "Логопед",
-    readTime: 7,
-    color: "#D53F8C",
-  },
-  {
-    id: "3",
-    title: "Как справляться с истериками без стресса",
-    category: "Поведенческие техники",
-    author: "А. Петрова",
-    specialty: "Поведенческий аналитик",
-    readTime: 6,
-    color: "#38A169",
-  },
-  {
-    id: "4",
-    title: "Регуляция эмоций: практические упражнения",
-    category: "Эмоциональная регуляция",
-    author: "О. Сидорова",
-    specialty: "Психолог",
-    readTime: 8,
-    color: "#D69E2E",
-  },
-  {
-    id: "5",
-    title: "Забота о себе: ресурс для мамы особого ребёнка",
-    category: "Поддержка мамы",
-    author: "Т. Белова",
-    specialty: "Психотерапевт",
-    readTime: 4,
-    color: "#2B6CB0",
-  },
-  {
-    id: "6",
-    title: "Визуальные расписания: пошаговый гайд",
-    category: "Поведенческие техники",
-    author: "К. Морозова",
-    specialty: "АВА-терапевт",
-    readTime: 5,
-    color: "#744210",
-  },
-];
 
 const MOCK_SPECIALISTS: Specialist[] = [
   {
@@ -146,6 +91,7 @@ const CATEGORY_FILTER_VALUES: Record<CategoryKey, string> = {
 
 export default function LibraryScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParamList>>();
 
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
@@ -187,7 +133,7 @@ export default function LibraryScreen() {
     });
   }, []);
 
-  const filteredArticles = MOCK_ARTICLES.filter((a) => {
+  const filteredArticles = (ARTICLES as Article[]).filter((a) => {
     const matchCategory =
       activeCategory === "all" ||
       a.category === CATEGORY_FILTER_VALUES[activeCategory];
@@ -265,6 +211,7 @@ export default function LibraryScreen() {
             <TouchableOpacity
               style={[styles.featuredCard, { backgroundColor: featuredArticle.color }]}
               activeOpacity={0.88}
+              onPress={() => navigation.navigate("ArticleDetail", { articleId: featuredArticle.id })}
             >
               <View style={styles.featuredTop}>
                 <View style={styles.featuredCategoryPill}>
@@ -307,13 +254,18 @@ export default function LibraryScreen() {
             <Text style={styles.sectionTitle}>{t("library.allArticles")}</Text>
             <View style={styles.grid}>
               {gridArticles.map((article, index) => (
-                <View key={article.id} style={[styles.gridItem, index % 2 === 1 && styles.gridItemRight]}>
+                <TouchableOpacity
+                  key={article.id}
+                  style={[styles.gridItem, index % 2 === 1 && styles.gridItemRight]}
+                  activeOpacity={0.88}
+                  onPress={() => navigation.navigate("ArticleDetail", { articleId: article.id })}
+                >
                   <ArticleCard
                     article={article}
                     bookmarked={bookmarks.has(article.id)}
                     onBookmark={toggleBookmark}
                   />
-                </View>
+                </TouchableOpacity>
               ))}
               {/* Fill empty slot if odd count */}
               {gridArticles.length % 2 !== 0 && <View style={styles.gridItem} />}
