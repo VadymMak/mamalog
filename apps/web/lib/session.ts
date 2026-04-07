@@ -12,12 +12,10 @@ export async function getRequiredSession(): Promise<SessionResult> {
   // 1. Try Bearer token from mobile (Authorization: Bearer {userId})
   const headersList = await headers();
   const authHeader = headersList.get("authorization");
-  console.log("[session] AUTH HEADER:", authHeader);
   if (authHeader?.startsWith("Bearer ")) {
     const userId = authHeader.replace("Bearer ", "").replace(/"/g, "").trim();
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      console.log("[session] USER FOUND:", user?.id ?? "null");
       if (user) {
         const mobileSession = {
           user: { id: user.id, email: user.email, name: user.name },

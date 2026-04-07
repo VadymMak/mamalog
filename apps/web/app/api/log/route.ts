@@ -108,12 +108,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // ─── GET /api/log ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  console.log("[GET /api/log] headers:", req.headers.get("authorization"));
   const auth = await getRequiredSession();
-  console.log("[GET /api/log] auth.ok:", auth.ok);
   if (!auth.ok) return auth.response;
   const userId = getUserId(auth.session);
-  console.log("[GET /api/log] userId:", userId);
 
   try {
     const { searchParams } = req.nextUrl;
