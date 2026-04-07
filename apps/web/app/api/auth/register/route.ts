@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 import {
   validateEmail,
   validatePassword,
@@ -63,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Create user + settings + subscription in one transaction
-    const user = await prisma.$transaction(async (tx: TxClient) => {
+    const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
           email: email.trim().toLowerCase(),
