@@ -252,6 +252,12 @@ const ru = {
     logoutConfirmTitle: "Выйти?",
     logoutConfirmMsg: "Вы уверены, что хотите выйти?",
   },
+  notifications: {
+    reminder: "Напоминание о дневнике",
+    reminderBody: "Не забудьте записать наблюдения",
+    enabled: "Уведомления включены",
+    disabled: "Уведомления выключены",
+  },
 };
 
 const en = {
@@ -503,6 +509,12 @@ const en = {
     logout: "Sign out",
     logoutConfirmTitle: "Sign out?",
     logoutConfirmMsg: "Are you sure you want to sign out?",
+  },
+  notifications: {
+    reminder: "Diary reminder",
+    reminderBody: "Don't forget to record your observations",
+    enabled: "Notifications enabled",
+    disabled: "Notifications disabled",
   },
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,11 +15,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthContext } from "../../context/AuthContext";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useProfile } from "../../hooks/useProfile";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
-import { API_URL, APP_VERSION } from "../../lib/constants";
+import { API_URL, APP_VERSION, STORAGE_KEYS } from "../../lib/constants";
+import { scheduleDailyReminder, cancelAllNotifications } from "../../lib/notifications";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -36,7 +38,14 @@ export default function ProfileScreen() {
   const [childAge, setChildAge] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [saving, setSaving] = useState(false);
-  const [notificationsOn, setNotificationsOn] = useState(true);
+  const [notificationsOn, setNotificationsOn] = useState(false);
+
+  // Load notifications preference from storage
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED).then((val) => {
+      setNotificationsOn(val === "true");
+    });
+  }, []);
 
   // Sync form when API data arrives
   React.useEffect(() => {
@@ -102,6 +111,19 @@ export default function ProfileScreen() {
       },
     ]);
   }, [signOut, navigation, t]);
+
+  // ── Notifications toggle ─────────────────────────────────────────────────
+  const handleNotificationsToggle = useCallback(async (value: boolean) => {
+    setNotificationsOn(value);
+    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED, String(value));
+    if (value) {
+      await scheduleDailyReminder(20, 0);
+      Alert.alert(t("notifications.enabled"), t("notifications.reminder"));
+    } else {
+      await cancelAllNotifications();
+      Alert.alert(t("notifications.disabled"), "");
+    }
+  }, [t]);
 
   // ── Language toggle ──────────────────────────────────────────────────────
   const handleLanguage = useCallback(() => {
@@ -238,7 +260,7 @@ export default function ProfileScreen() {
               <Text style={styles.settingLabel}>{t("profile.settingsNotifications")}</Text>
               <Switch
                 value={notificationsOn}
-                onValueChange={setNotificationsOn}
+                onValueChange={handleNotificationsToggle}
                 trackColor={{ false: colors.border, true: colors.primaryLight }}
                 thumbColor={notificationsOn ? colors.primary : colors.textHint}
               />
