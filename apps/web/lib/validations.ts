@@ -9,3 +9,8 @@ export function validatePassword(password: string): boolean {
 export function validateName(name: string): boolean {
   return name.trim().length > 0;
 }
+
+export function validateMessage(msg: string): boolean {
+  const trimmed = msg.trim();
+  return trimmed.length >= 1 && trimmed.length <= 1000;
+}
