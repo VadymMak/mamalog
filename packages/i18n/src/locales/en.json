@@ -1,1 +1,27 @@
-{}
+{
+  "tabs": {
+    "diary": "Diary",
+    "behavior": "Behavior",
+    "aiAdvisor": "AI Advisor",
+    "analytics": "Analytics",
+    "library": "Library"
+  },
+  "sos": {
+    "title": "SOS",
+    "whatToDo": "What to do now",
+    "breathe": "Breathing for mom",
+    "audio": "Audio for child"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "back": "Back"
+  }
+}

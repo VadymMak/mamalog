@@ -1,1 +1,27 @@
-{}
+{
+  "tabs": {
+    "diary": "Дневник",
+    "behavior": "Поведение",
+    "aiAdvisor": "AI советник",
+    "analytics": "Аналитика",
+    "library": "Библиотека"
+  },
+  "sos": {
+    "title": "SOS",
+    "whatToDo": "Что делать сейчас",
+    "breathe": "Дыхание для мамы",
+    "audio": "Аудио для ребёнка"
+  },
+  "auth": {
+    "login": "Войти",
+    "register": "Регистрация",
+    "email": "Email",
+    "password": "Пароль",
+    "name": "Имя"
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "back": "Назад"
+  }
+}
