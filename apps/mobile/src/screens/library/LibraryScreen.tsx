@@ -203,20 +203,34 @@ export default function LibraryScreen() {
         )}
       </View>
 
-      {/* Category chips — horizontal scroll pills */}
+      {/* Category chips — horizontal scroll pills (~40px row) */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabs}
+        style={{ paddingVertical: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
       >
         {FILTER_CHIPS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.tab, activeFilter === f.key && styles.tabActive]}
             onPress={() => setActiveFilter(f.key)}
             activeOpacity={0.75}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 6,
+              borderRadius: 20,
+              backgroundColor: activeFilter === f.key ? colors.primary : "transparent",
+              borderWidth: 1,
+              borderColor: activeFilter === f.key ? colors.primary : colors.border,
+            }}
           >
-            <Text style={[styles.tabText, activeFilter === f.key && styles.tabTextActive]}>
+            <Text
+              style={{
+                color: activeFilter === f.key ? "#fff" : colors.textSecondary,
+                fontSize: 14,
+                fontWeight: activeFilter === f.key ? "600" : "400",
+              }}
+            >
               {f.label}
             </Text>
           </TouchableOpacity>
