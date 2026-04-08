@@ -19,7 +19,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           email: true,
           role: true,
           language: true,
-          isSuperUser: true,
+          // isSuperUser omitted — column not yet in prod DB
           childName: true,
           childAge: true,
           diagnosis: true,

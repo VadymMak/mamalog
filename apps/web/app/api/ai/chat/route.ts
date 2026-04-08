@@ -46,37 +46,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Fetch user + subscription in one query
+    // NOTE: isSuperUser column not yet in prod DB — defaulting to false until migration runs
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        isSuperUser: true,
         subscription: { select: { plan: true, status: true } },
       },
     });
 
     const subscriptionPlan = user?.subscription?.plan ?? "FREE";
     const subscriptionActive = user?.subscription?.status === "active";
-    const isSuperUser = user?.isSuperUser ?? false;
 
     const isPremium =
-      isSuperUser ||
-      (subscriptionActive &&
-        (subscriptionPlan === "MONTHLY" || subscriptionPlan === "YEARLY"));
+      subscriptionActive &&
+      (subscriptionPlan === "MONTHLY" || subscriptionPlan === "YEARLY");
 
     // Enforce FREE daily limit
+    // NOTE: AIUsageLog table not yet in prod DB — using in-memory no-op until migration runs
     if (!isPremium) {
-      const todayCount = await prisma.aIUsageLog.count({
-        where: { userId, createdAt: { gte: TODAY_START() } },
-      });
-      if (todayCount >= FREE_DAILY_LIMIT) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Free plan limit reached (${FREE_DAILY_LIMIT} messages/day). Upgrade to Premium for unlimited access.`,
-            limitReached: true,
-          },
-          { status: 429 }
-        );
+      try {
+        const todayCount = await prisma.aIUsageLog.count({
+          where: { userId, createdAt: { gte: TODAY_START() } },
+        });
+        if (todayCount >= FREE_DAILY_LIMIT) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Free plan limit reached (${FREE_DAILY_LIMIT} messages/day). Upgrade to Premium for unlimited access.`,
+              limitReached: true,
+            },
+            { status: 429 }
+          );
+        }
+      } catch {
+        // AIUsageLog table missing in DB — skip rate limiting until migration runs
       }
     }
 
@@ -146,8 +149,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       tokensUsed = completion.usage?.total_tokens ?? 0;
     }
 
-    // Log usage for rate limiting
-    await prisma.aIUsageLog.create({ data: { userId } });
+    // Log usage for rate limiting (best-effort — table may not exist yet)
+    try {
+      await prisma.aIUsageLog.create({ data: { userId } });
+    } catch {
+      // AIUsageLog table missing in DB — skip until migration runs
+    }
 
     return NextResponse.json({
       success: true,
