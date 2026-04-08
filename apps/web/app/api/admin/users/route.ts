@@ -20,9 +20,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           role: true,
           language: true,
           isSuperUser: true,
+          childName: true,
+          childAge: true,
+          diagnosis: true,
           createdAt: true,
           subscription: {
-            select: { plan: true, status: true },
+            select: { plan: true, status: true, expiresAt: true },
+          },
+          _count: {
+            select: { logEntries: true },
+          },
+          logEntries: {
+            select: { date: true },
+            orderBy: { date: "desc" },
+            take: 1,
           },
         },
         orderBy: { createdAt: "desc" },
@@ -32,7 +43,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       prisma.user.count(),
     ]);
 
-    return NextResponse.json({ success: true, data: users, total, limit, offset });
+    const data = users.map((u) => {
+      const { _count, logEntries, ...rest } = u;
+      return {
+        ...rest,
+        totalLogs: _count.logEntries,
+        lastActiveAt: logEntries[0]?.date ?? null,
+      };
+    });
+
+    return NextResponse.json({ success: true, data, total, limit, offset });
   } catch (err) {
     console.error("[GET /api/admin/users]", err);
     return NextResponse.json(

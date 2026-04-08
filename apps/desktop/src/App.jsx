@@ -1,16 +1,19 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import Dashboard from "./screens/Dashboard";
 import SpecialistRequests from "./screens/SpecialistRequests";
-import Users from "./screens/Users";
+import CRM from "./screens/CRM";
+import UserDetail from "./screens/UserDetail";
+import Analytics from "./screens/Analytics";
 import ContentModeration from "./screens/ContentModeration";
 import "./styles.css";
 
 const NAV_ITEMS = [
-  { id: "specialists", label: "Заявки специалистов" },
-  { id: "users", label: "Пользователи" },
-  { id: "content", label: "Контент" },
-  { id: "analytics", label: "Аналитика" },
-  { id: "settings", label: "Настройки" },
+  { id: "analytics", label: "📊 Аналитика" },
+  { id: "crm", label: "👥 CRM" },
+  { id: "specialists", label: "🩺 Специалисты" },
+  { id: "content", label: "📝 Контент" },
+  { id: "knowledge", label: "🧠 База знаний" },
+  { id: "settings", label: "⚙️ Настройки" },
 ];
 
 let toastId = 0;
@@ -20,6 +23,7 @@ function PlaceholderScreen({ title }) {
     <div className="screen">
       <h1 className="screen-title">{title}</h1>
       <div className="empty-state">
+        <span className="empty-icon">🚧</span>
         <p>Раздел в разработке</p>
       </div>
     </div>
@@ -28,24 +32,41 @@ function PlaceholderScreen({ title }) {
 
 export default function App() {
   const [active, setActive] = useState("analytics");
+  const [selectedUser, setSelectedUser] = useState(null);
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((message, type = "success") => {
     const id = ++toastId;
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   }, []);
+
+  function handleUserClick(user) {
+    setSelectedUser(user);
+    setActive("user-detail");
+  }
+
+  function handleBackFromDetail() {
+    setSelectedUser(null);
+    setActive("crm");
+  }
 
   function renderContent() {
     switch (active) {
+      case "analytics":
+        return <Analytics showToast={showToast} />;
+      case "crm":
+        return <CRM showToast={showToast} onUserClick={handleUserClick} />;
+      case "user-detail":
+        return (
+          <UserDetail
+            user={selectedUser}
+            onBack={handleBackFromDetail}
+            showToast={showToast}
+          />
+        );
       case "specialists":
         return <SpecialistRequests showToast={showToast} />;
-      case "users":
-        return <Users showToast={showToast} />;
-      case "analytics":
-        return <Dashboard showToast={showToast} />;
       case "content":
         return <ContentModeration />;
       default:
@@ -69,8 +90,8 @@ export default function App() {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
-              className={`nav-item ${active === item.id ? "nav-item--active" : ""}`}
-              onClick={() => setActive(item.id)}
+              className={`nav-item ${(active === item.id || (active === "user-detail" && item.id === "crm")) ? "nav-item--active" : ""}`}
+              onClick={() => { setActive(item.id); if (item.id !== "crm") setSelectedUser(null); }}
             >
               {item.label}
             </button>
