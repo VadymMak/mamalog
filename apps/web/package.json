@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate.js && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -17,6 +17,7 @@
     "next": "16.2.2",
     "next-auth": "^4.24.13",
     "openai": "^6.33.0",
+    "pg": "^8.20.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
