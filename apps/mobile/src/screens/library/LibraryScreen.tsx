@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import SpecialistCard, { Specialist } from "../../components/library/SpecialistCard";
+import { ARTICLES } from "../../data/articles";
 import { API_URL } from "../../lib/constants";
 import type { LibraryStackParamList } from "../../navigation/MainNavigator";
 import { getAuthHeaders } from "../../lib/api";
@@ -27,13 +28,15 @@ export interface KnowledgeArticle {
   title: string;
   excerpt: string;
   content: string;
-  sourceType: string;  // "admin" | "specialist" | "mom"
+  sourceType: string;
   authorName: string | null;
   authorRole: string | null;
   tags: string[];
   ageGroup: string | null;
-  trustIndex: number;  // 1-5
+  trustIndex: number;
   createdAt: string;
+  color?: string;
+  category?: string;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -50,32 +53,41 @@ const MOCK_SPECIALISTS: Specialist[] = [
   { id: "s4", name: "Ольга Сидорова", specialty: "Психолог", experience: 10, rating: 4.9, color: "#D69E2E", initials: "ОС" },
 ];
 
+/** Convert local ARTICLES data into KnowledgeArticle shape for unified rendering */
+const FALLBACK_ARTICLES: KnowledgeArticle[] = ARTICLES.map((a) => ({
+  id: a.id,
+  title: a.title,
+  excerpt: a.content.slice(0, 200),
+  content: a.content,
+  sourceType: "specialist",
+  authorName: a.author,
+  authorRole: a.specialty,
+  tags: [a.category],
+  ageGroup: null,
+  trustIndex: 4,
+  createdAt: new Date().toISOString(),
+  color: a.color,
+  category: a.category,
+}));
+
 const FILTER_CHIPS = [
-  { key: "all", label: "Все", tag: "" },
-  { key: "сон", label: "Сон", tag: "сон" },
-  { key: "еда", label: "Еда", tag: "еда" },
-  { key: "истерики", label: "Истерики", tag: "истерики" },
-  { key: "речь", label: "Речь", tag: "речь" },
-  { key: "сенсорика", label: "Сенсорика", tag: "сенсорика" },
-  { key: "РАС", label: "РАС", tag: "РАС" },
-  { key: "СДВГ", label: "СДВГ", tag: "СДВГ" },
+  { key: "all", label: "Все", category: "" },
+  { key: "sensory", label: "Сенсорная", category: "Сенсорная интеграция" },
+  { key: "speech", label: "Речь", category: "Речевое развитие" },
+  { key: "emotions", label: "Эмоции", category: "Эмоциональная регуляция" },
+  { key: "behavior", label: "Поведение", category: "Поведенческие техники" },
+  { key: "mom", label: "Мама", category: "Поддержка мамы" },
 ] as const;
 
 type FilterKey = (typeof FILTER_CHIPS)[number]["key"];
-
-const SOURCE_LABEL: Record<string, string> = {
-  admin: "Администратор",
-  specialist: "Специалист",
-  mom: "Опыт мамы",
-};
 
 const CARD_COLORS = [
   "#6B46C1", "#D53F8C", "#38A169", "#D69E2E",
   "#3182CE", "#E53E3E", "#805AD5", "#2C7A7B",
 ];
 
-function cardColor(index: number): string {
-  return CARD_COLORS[index % CARD_COLORS.length] ?? "#6B46C1";
+function cardColor(article: KnowledgeArticle, index: number): string {
+  return article.color ?? CARD_COLORS[index % CARD_COLORS.length] ?? "#6B46C1";
 }
 
 function TrustStars({ index }: { index: number }) {
@@ -86,54 +98,34 @@ function TrustStars({ index }: { index: number }) {
   );
 }
 
-function SourceBadge({ sourceType }: { sourceType: string }) {
-  const label = SOURCE_LABEL[sourceType] ?? sourceType;
-  const bgColor =
-    sourceType === "admin" ? "#EBF4FF"
-    : sourceType === "specialist" ? "#F0FFF4"
-    : "#FFF5F5";
-  const textColor =
-    sourceType === "admin" ? "#2B6CB0"
-    : sourceType === "specialist" ? "#276749"
-    : "#C53030";
-
-  return (
-    <View style={[styles.sourceBadge, { backgroundColor: bgColor }]}>
-      <Text style={[styles.sourceBadgeText, { color: textColor }]}>{label}</Text>
-    </View>
-  );
-}
-
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function LibraryScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParamList>>();
 
-  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [articles, setArticles] = useState<KnowledgeArticle[]>(FALLBACK_ARTICLES);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [specialists, setSpecialists] = useState<Specialist[]>(MOCK_SPECIALISTS);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchArticles = useCallback(async (tag = "") => {
+  const fetchArticles = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const url = tag
-        ? `${API_URL}/api/knowledge?tag=${encodeURIComponent(tag)}&limit=30`
-        : `${API_URL}/api/knowledge?limit=30`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed");
+      const res = await fetch(`${API_URL}/api/knowledge?limit=30`, { headers });
+      if (!res.ok) return; // keep fallback
       const json = (await res.json()) as { data?: KnowledgeArticle[] };
-      setArticles(json.data ?? []);
-      setError(null);
+      if (json.data && json.data.length > 0) {
+        setArticles(json.data);
+      }
+      // If API returns empty, keep FALLBACK_ARTICLES
     } catch {
-      setError(t("library.noResults"));
+      // keep fallback data — no error shown
     }
-  }, [t]);
+  }, []);
 
   const fetchSpecialists = useCallback(async () => {
     try {
@@ -147,29 +139,15 @@ export default function LibraryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      setLoading(true);
-      const tag = FILTER_CHIPS.find((f) => f.key === activeFilter)?.tag ?? "";
-      Promise.all([fetchArticles(tag), fetchSpecialists()]).finally(() => {
-        if (active) setLoading(false);
-      });
-      return () => { active = false; };
-    }, [fetchArticles, fetchSpecialists, activeFilter])
+      fetchArticles();
+      fetchSpecialists();
+    }, [fetchArticles, fetchSpecialists])
   );
 
   async function handleRefresh() {
     setRefreshing(true);
-    const tag = FILTER_CHIPS.find((f) => f.key === activeFilter)?.tag ?? "";
-    await Promise.all([fetchArticles(tag), fetchSpecialists()]);
+    await Promise.all([fetchArticles(), fetchSpecialists()]);
     setRefreshing(false);
-  }
-
-  async function handleFilterChange(key: FilterKey) {
-    setActiveFilter(key);
-    setLoading(true);
-    const tag = FILTER_CHIPS.find((f) => f.key === key)?.tag ?? "";
-    await fetchArticles(tag);
-    setLoading(false);
   }
 
   const toggleBookmark = useCallback((id: string) => {
@@ -180,10 +158,20 @@ export default function LibraryScreen() {
     });
   }, []);
 
+  const activeChip = FILTER_CHIPS.find((f) => f.key === activeFilter);
+
   const filteredArticles = articles.filter((a) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return a.title.toLowerCase().includes(q) || (a.authorName ?? "").toLowerCase().includes(q);
+    const matchSearch =
+      !search ||
+      a.title.toLowerCase().includes(search.toLowerCase()) ||
+      (a.authorName ?? "").toLowerCase().includes(search.toLowerCase());
+
+    const matchFilter =
+      !activeChip?.category ||
+      a.tags.includes(activeChip.category) ||
+      a.category === activeChip.category;
+
+    return matchSearch && matchFilter;
   });
 
   const featuredArticle = filteredArticles[0] ?? null;
@@ -215,7 +203,7 @@ export default function LibraryScreen() {
         )}
       </View>
 
-      {/* Filter chips */}
+      {/* Category chips — horizontal scroll pills */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -225,7 +213,7 @@ export default function LibraryScreen() {
           <TouchableOpacity
             key={f.key}
             style={[styles.tab, activeFilter === f.key && styles.tabActive]}
-            onPress={() => handleFilterChange(f.key as FilterKey)}
+            onPress={() => setActiveFilter(f.key)}
             activeOpacity={0.75}
           >
             <Text style={[styles.tabText, activeFilter === f.key && styles.tabTextActive]}>
@@ -235,145 +223,136 @@ export default function LibraryScreen() {
         ))}
       </ScrollView>
 
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          {/* Featured article */}
-          {featuredArticle && (
-            <View style={styles.featuredWrapper}>
-              <Text style={styles.sectionTitle}>{t("library.featured")}</Text>
-              <TouchableOpacity
-                style={[styles.featuredCard, { backgroundColor: cardColor(0) }]}
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate("ArticleDetail", { articleId: featuredArticle.id })}
-              >
-                <View style={styles.featuredTop}>
-                  <SourceBadge sourceType={featuredArticle.sourceType} />
-                  <TouchableOpacity
-                    onPress={() => toggleBookmark(featuredArticle.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons
-                      name={bookmarks.has(featuredArticle.id) ? "bookmark" : "bookmark-outline"}
-                      size={20}
-                      color={colors.white}
-                    />
-                  </TouchableOpacity>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Featured article — large card */}
+        {featuredArticle && (
+          <View style={styles.featuredWrapper}>
+            <Text style={styles.sectionTitle}>{t("library.featured")}</Text>
+            <TouchableOpacity
+              style={[styles.featuredCard, { backgroundColor: cardColor(featuredArticle, 0) }]}
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate("ArticleDetail", { articleId: featuredArticle.id })}
+            >
+              <View style={styles.featuredTop}>
+                <View style={styles.featuredCategoryPill}>
+                  <Text style={styles.featuredCategoryText} numberOfLines={1}>
+                    {featuredArticle.category ?? featuredArticle.tags[0] ?? featuredArticle.sourceType}
+                  </Text>
                 </View>
-                <Text style={styles.featuredTitle} numberOfLines={3}>
-                  {featuredArticle.title}
-                </Text>
-                <View style={styles.featuredFooter}>
-                  <View>
-                    <Text style={styles.featuredAuthor}>{featuredArticle.authorName ?? "—"}</Text>
-                    <TrustStars index={featuredArticle.trustIndex} />
-                  </View>
-                  <View style={styles.readButton}>
-                    <Text style={styles.readButtonText}>{t("library.read")}</Text>
-                  </View>
+                <TouchableOpacity
+                  onPress={() => toggleBookmark(featuredArticle.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={bookmarks.has(featuredArticle.id) ? "bookmark" : "bookmark-outline"}
+                    size={20}
+                    color={colors.white}
+                  />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.featuredTitle} numberOfLines={3}>
+                {featuredArticle.title}
+              </Text>
+              <View style={styles.featuredFooter}>
+                <View>
+                  <Text style={styles.featuredAuthor}>
+                    {featuredArticle.authorName ?? "—"}
+                  </Text>
+                  <Text style={styles.featuredMeta}>
+                    {featuredArticle.authorRole ?? featuredArticle.sourceType}
+                  </Text>
                 </View>
-              </TouchableOpacity>
-            </View>
-          )}
+                <View style={styles.readButton}>
+                  <Text style={styles.readButtonText}>{t("library.read")}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          {/* Articles grid */}
-          {gridArticles.length > 0 && (
-            <View style={styles.gridSection}>
-              <Text style={styles.sectionTitle}>{t("library.allArticles")}</Text>
-              <View style={styles.grid}>
-                {gridArticles.map((article, index) => (
-                  <TouchableOpacity
-                    key={article.id}
-                    style={[styles.gridItem, index % 2 === 1 && styles.gridItemRight]}
-                    activeOpacity={0.88}
-                    onPress={() => navigation.navigate("ArticleDetail", { articleId: article.id })}
-                  >
-                    <View style={styles.card}>
-                      <View style={[styles.cover, { backgroundColor: cardColor(index + 1) }]}>
-                        <View style={styles.categoryPill}>
-                          <Text style={styles.categoryPillText} numberOfLines={1}>
-                            {article.tags[0] ?? article.sourceType}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle} numberOfLines={2}>{article.title}</Text>
-                        <Text style={styles.cardAuthor} numberOfLines={1}>
-                          {article.authorName ?? "—"}
+        {/* Articles grid */}
+        {gridArticles.length > 0 && (
+          <View style={styles.gridSection}>
+            <Text style={styles.sectionTitle}>{t("library.allArticles")}</Text>
+            <View style={styles.grid}>
+              {gridArticles.map((article, index) => (
+                <TouchableOpacity
+                  key={article.id}
+                  style={styles.gridItem}
+                  activeOpacity={0.88}
+                  onPress={() => navigation.navigate("ArticleDetail", { articleId: article.id })}
+                >
+                  <View style={styles.card}>
+                    <View style={[styles.cover, { backgroundColor: cardColor(article, index + 1) }]}>
+                      <View style={styles.categoryPill}>
+                        <Text style={styles.categoryPillText} numberOfLines={1}>
+                          {article.category ?? article.tags[0] ?? article.sourceType}
                         </Text>
-                        <SourceBadge sourceType={article.sourceType} />
-                        <View style={styles.cardFooter}>
-                          <TrustStars index={article.trustIndex} />
-                          <TouchableOpacity
-                            onPress={() => toggleBookmark(article.id)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons
-                              name={bookmarks.has(article.id) ? "bookmark" : "bookmark-outline"}
-                              size={18}
-                              color={colors.primary}
-                            />
-                          </TouchableOpacity>
-                        </View>
                       </View>
                     </View>
-                  </TouchableOpacity>
-                ))}
-                {gridArticles.length % 2 !== 0 && <View style={styles.gridItem} />}
-              </View>
-            </View>
-          )}
-
-          {/* Empty state */}
-          {filteredArticles.length === 0 && !error && (
-            <View style={styles.empty}>
-              <Ionicons name="library-outline" size={48} color={colors.textHint} />
-              <Text style={styles.emptyText}>{t("library.noResults")}</Text>
-              <Text style={styles.emptySubtext}>
-                {activeFilter !== "all" ? `По тегу «${activeFilter}» статей пока нет` : "Библиотека пополняется"}
-              </Text>
-            </View>
-          )}
-
-          {error && (
-            <View style={styles.empty}>
-              <Ionicons name="wifi-outline" size={48} color={colors.textHint} />
-              <Text style={styles.emptyText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Specialists */}
-          <View style={styles.specialistsSection}>
-            <Text style={styles.sectionTitle}>{t("library.specialists")}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.specialistsList}
-            >
-              {specialists.map((s) => (
-                <SpecialistCard key={s.id} specialist={s} onPress={() => {}} />
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>{article.title}</Text>
+                      <Text style={styles.cardAuthor} numberOfLines={1}>
+                        {article.authorName ?? "—"}
+                      </Text>
+                      <View style={styles.cardFooter}>
+                        <TrustStars index={article.trustIndex} />
+                        <TouchableOpacity
+                          onPress={() => toggleBookmark(article.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={bookmarks.has(article.id) ? "bookmark" : "bookmark-outline"}
+                            size={18}
+                            color={colors.primary}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               ))}
-            </ScrollView>
+              {gridArticles.length % 2 !== 0 && <View style={styles.gridItem} />}
+            </View>
           </View>
-        </ScrollView>
-      )}
+        )}
+
+        {/* Empty state — only shown when filter has no matches */}
+        {filteredArticles.length === 0 && (
+          <View style={styles.empty}>
+            <Ionicons name="library-outline" size={48} color={colors.textHint} />
+            <Text style={styles.emptyText}>{t("library.noResults")}</Text>
+          </View>
+        )}
+
+        {/* Specialists */}
+        <View style={styles.specialistsSection}>
+          <Text style={styles.sectionTitle}>{t("library.specialists")}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.specialistsList}
+          >
+            {specialists.map((s) => (
+              <SpecialistCard key={s.id} specialist={s} onPress={() => {}} />
+            ))}
+          </ScrollView>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -392,6 +371,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.h2, color: colors.textPrimary },
   headerSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+
   searchWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -409,7 +389,12 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 2 },
   searchInput: { flex: 1, ...typography.bodySmall, color: colors.textPrimary, padding: 0 },
-  tabs: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs },
+
+  tabs: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
   tab: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
@@ -421,15 +406,17 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { ...typography.caption, color: colors.textSecondary, fontWeight: "500" },
   tabTextActive: { color: colors.white, fontWeight: "600" },
-  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60 },
+
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: spacing.xxl },
+
   sectionTitle: {
     ...typography.h3,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+
   featuredWrapper: { marginTop: spacing.md },
   featuredCard: {
     marginHorizontal: spacing.md,
@@ -444,6 +431,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  featuredCategoryPill: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  featuredCategoryText: { ...typography.caption, color: colors.white, fontWeight: "600" },
   featuredTitle: { ...typography.h3, color: colors.white, marginTop: spacing.sm, lineHeight: 24 },
   featuredFooter: {
     flexDirection: "row",
@@ -452,6 +446,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   featuredAuthor: { ...typography.caption, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
+  featuredMeta: { ...typography.caption, color: "rgba(255,255,255,0.7)", marginTop: 2 },
   readButton: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,
@@ -459,6 +454,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   readButtonText: { ...typography.buttonSmall, color: colors.primary },
+
   gridSection: { marginTop: spacing.lg },
   grid: {
     flexDirection: "row",
@@ -467,7 +463,7 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
   },
   gridItem: { width: CARD_WIDTH },
-  gridItemRight: {},
+
   card: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -495,16 +491,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   trustStars: { fontSize: 11, color: "#D69E2E", letterSpacing: 1 },
-  sourceBadge: {
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    alignSelf: "flex-start",
-  },
-  sourceBadgeText: { fontSize: 10, fontWeight: "600" },
+
   empty: { alignItems: "center", paddingTop: spacing.xxl, gap: spacing.md },
   emptyText: { ...typography.body, color: colors.textHint, textAlign: "center" },
-  emptySubtext: { ...typography.caption, color: colors.textHint, textAlign: "center" },
+
   specialistsSection: { marginTop: spacing.lg },
   specialistsList: { paddingHorizontal: spacing.md, gap: spacing.sm },
 });
