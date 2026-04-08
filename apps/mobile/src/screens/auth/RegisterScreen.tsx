@@ -209,7 +209,7 @@ export default function RegisterScreen() {
           {/* Back button */}
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate("Login")}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -291,7 +291,7 @@ export default function RegisterScreen() {
               <Text style={styles.haveAccountText}>
                 {t("auth.alreadyHaveAccount")}{" "}
               </Text>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
                 <Text style={styles.loginLink}>{t("auth.goLogin")}</Text>
               </TouchableOpacity>
             </View>
