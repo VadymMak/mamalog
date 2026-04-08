@@ -203,11 +203,11 @@ export default function LibraryScreen() {
         )}
       </View>
 
-      {/* Category chips — horizontal scroll pills (~40px row) */}
+      {/* Category chips — horizontal scroll pills, fixed 40px row */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ paddingVertical: 8 }}
+        style={{ height: 40, flexShrink: 0 }}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
       >
         {FILTER_CHIPS.map((f) => (
@@ -391,8 +391,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.surface,
     marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: 4,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
 
-  featuredWrapper: { marginTop: spacing.md },
+  featuredWrapper: { marginTop: 8 },
   featuredCard: {
     marginHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
