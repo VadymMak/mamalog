@@ -13,15 +13,21 @@ export async function getRequiredSession(): Promise<SessionResult> {
   const headersList = await headers();
   const authHeader = headersList.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
-    const userId = authHeader.replace("Bearer ", "").replace(/"/g, "").trim();
-    if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (user) {
-        const mobileSession = {
-          user: { id: user.id, email: user.email, name: user.name },
-          expires: new Date(Date.now() + 86400_000).toISOString(),
-        } as Session;
-        return { ok: true, session: mobileSession };
+    const raw = authHeader.replace("Bearer ", "").replace(/"/g, "").trim();
+    console.error("[session] Bearer raw userId:", raw);
+    if (raw) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: raw } });
+        if (user) {
+          const mobileSession = {
+            user: { id: user.id, email: user.email, name: user.name },
+            expires: new Date(Date.now() + 86400_000).toISOString(),
+          } as Session;
+          return { ok: true, session: mobileSession };
+        }
+        console.error("[session] No user found for id:", raw);
+      } catch (err) {
+        console.error("[session] Prisma error:", err);
       }
     }
     return {
