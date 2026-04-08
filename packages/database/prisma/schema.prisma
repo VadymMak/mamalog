@@ -129,3 +129,17 @@ enum SubscriptionPlan {
   MONTHLY
   YEARLY
 }
+
+model KnowledgeBase {
+  id          String                          @id @default(cuid())
+  title       String
+  content     String                          @db.Text
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String
+  verified    Boolean                         @default(false)
+  authorId    String?
+  authorName  String?
+  tags        String[]
+  createdAt   DateTime                        @default(now())
+  updatedAt   DateTime                        @updatedAt
+}

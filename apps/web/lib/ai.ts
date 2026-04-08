@@ -51,8 +51,13 @@ export function formatLogsForAI(logs: LogEntryWithBehaviors[]): string {
 
 export function buildSystemPrompt(
   language: string,
-  logsContext: string
+  logsContext: string,
+  knowledgeContext?: string
 ): string {
+  const knowledgeSection = knowledgeContext
+    ? `\n\nRelevant knowledge from our database:\n${knowledgeContext}`
+    : "";
+
   return `You are a compassionate AI assistant for Mamalog — an app that helps mothers of children with special needs (ASD, ADHD, developmental delays) keep observation diaries.
 
 CRITICAL RULE: Always respond in the same language as the user's message. If message is in Russian — respond in Russian. If in English — respond in English. Never mix languages in one response.
@@ -67,5 +72,5 @@ Your role:
 User's language preference: ${language}
 
 User's recent diary data (last 7 days):
-${logsContext}`;
+${logsContext}${knowledgeSection}`;
 }

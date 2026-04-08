@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
 import { validateMessage } from "@/lib/validations";
 import { buildSystemPrompt, formatLogsForAI } from "@/lib/ai";
+import { searchKnowledge } from "@/lib/embeddings";
 
 interface MessageContext {
   recentLogs?: string[];
@@ -53,7 +54,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     const logsContext = formatLogsForAI(recentLogs);
-    const systemPrompt = buildSystemPrompt(language, logsContext);
+
+    // Search knowledge base for relevant content
+    let knowledgeContext: string | undefined;
+    try {
+      const knowledgeResults = await searchKnowledge(message, 3);
+      if (knowledgeResults.length > 0) {
+        knowledgeContext = knowledgeResults
+          .map((r) => `[${r.title}]: ${r.content.slice(0, 400)}\nSource: ${r.sourceType}`)
+          .join("\n\n");
+      }
+    } catch {
+      // Knowledge search is best-effort — don't fail the chat request
+    }
+
+    const systemPrompt = buildSystemPrompt(language, logsContext, knowledgeContext);
 
     // Append optional context hints to user message
     const contextHints: string[] = [];
