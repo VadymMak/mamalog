@@ -51,7 +51,7 @@
     },
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["metro"],
+        "exclude": ["metro", "react-native-chart-kit"],
         "listUnknownPackages": false
       }
     }
