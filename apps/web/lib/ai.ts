@@ -15,16 +15,14 @@ interface LogEntryWithBehaviors {
   behaviors: BehaviorLogSummary[];
 }
 
+/** Full diary formatter — kept for potential future use */
 export function formatLogsForAI(logs: LogEntryWithBehaviors[]): string {
   if (logs.length === 0) return "No diary entries in the last 7 days.";
 
   return logs
     .map((log) => {
       const date = log.date.toISOString().split("T")[0];
-      const lines: string[] = [
-        `Date: ${date}`,
-        `Mood: ${log.moodScore}/10`,
-      ];
+      const lines: string[] = [`Date: ${date}`, `Mood: ${log.moodScore}/10`];
 
       if (log.emotions.length > 0) lines.push(`Emotions: ${log.emotions.join(", ")}`);
       if (log.triggers.length > 0) lines.push(`Triggers: ${log.triggers.join(", ")}`);
@@ -49,28 +47,19 @@ export function formatLogsForAI(logs: LogEntryWithBehaviors[]): string {
     .join("\n\n---\n\n");
 }
 
+/**
+ * Build the system prompt for AI advisor.
+ * knowledgeContext is pre-built by buildKnowledgeContext() in embeddings.ts
+ * and already includes both RAG chunks and recent diary entries.
+ */
 export function buildSystemPrompt(
   language: string,
-  logsContext: string,
   knowledgeContext?: string
 ): string {
-  const knowledgeSection = knowledgeContext
-    ? `\n\nRelevant knowledge from our database:\n${knowledgeContext}`
-    : "";
-
-  return `You are a compassionate AI assistant for Mamalog — an app that helps mothers of children with special needs (ASD, ADHD, developmental delays) keep observation diaries.
-
-CRITICAL RULE: Always respond in the same language as the user's message. If message is in Russian — respond in Russian. If in English — respond in English. Never mix languages in one response.
-
-Your role:
-- Analyze diary entries and identify behavioral patterns
-- Give practical, evidence-based advice
-- Be warm, empathetic, non-judgmental
-- Never diagnose — always recommend consulting specialists
-- Keep responses concise (max 3-4 paragraphs)
-
-User's language preference: ${language}
-
-User's recent diary data (last 7 days):
-${logsContext}${knowledgeSection}`;
+  return `You are a caring AI advisor for mothers of children with special needs (ASD, ADHD, developmental delays).
+Language: ${language === "ru" ? "Russian" : "English"}
+Always respond with empathy and practical advice.
+${knowledgeContext ? `\n${knowledgeContext}` : ""}
+When using knowledge from the database, cite the source.
+Never give medical diagnoses. Always recommend consulting specialists.`;
 }
