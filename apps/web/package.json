@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.85.0",
     "@auth/prisma-adapter": "^2.11.1",
     "@mamalog/database": "workspace:*",
     "@prisma/client": "^6.19.3",

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           email: true,
           role: true,
           language: true,
+          isSuperUser: true,
           createdAt: true,
           subscription: {
             select: { plan: true, status: true },

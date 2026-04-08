@@ -18,6 +18,7 @@ model User {
   childName    String?
   childAge     Int?
   diagnosis    String?
+  isSuperUser  Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   subscription Subscription?
@@ -128,6 +129,14 @@ enum SubscriptionPlan {
   FREE
   MONTHLY
   YEARLY
+}
+
+model AIUsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model KnowledgeBase {
