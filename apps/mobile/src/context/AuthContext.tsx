@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { get, set, remove } from "../lib/storage";
 import { STORAGE_KEYS } from "../lib/constants";
 
@@ -44,13 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
     await set(STORAGE_KEYS.USER, user);
     await set(STORAGE_KEYS.AUTH_TOKEN, token);
-    await set(STORAGE_KEYS.USER_ID, user.id);
+    // Store userId as plain string (NOT JSON.stringify) so api.ts
+    // interceptor reads a clean value without quotes
+    await AsyncStorage.setItem(STORAGE_KEYS.USER_ID, user.id);
   }
 
   async function signOut() {
     await remove(STORAGE_KEYS.USER);
     await remove(STORAGE_KEYS.AUTH_TOKEN);
-    await remove(STORAGE_KEYS.USER_ID);
+    await AsyncStorage.removeItem(STORAGE_KEYS.USER_ID);
     // STORAGE_KEYS.ONBOARDING_COMPLETE is intentionally kept
     setUser(null);
   }

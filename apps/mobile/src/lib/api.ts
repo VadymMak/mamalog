@@ -13,9 +13,18 @@ export const api = axios.create({
 
 // Attach userId from storage on every request
 api.interceptors.request.use(async (config) => {
-  const userId = await AsyncStorage.getItem(STORAGE_KEYS.USER_ID);
-  if (userId) {
-    config.headers.Authorization = `Bearer ${userId}`;
+  // Try multiple key variants in case storage was written differently
+  const rawToken =
+    (await AsyncStorage.getItem(STORAGE_KEYS.USER_ID)) ||
+    (await AsyncStorage.getItem("@mamalog/user_id")) ||
+    (await AsyncStorage.getItem("user_id"));
+
+  if (rawToken) {
+    // Strip JSON quotes if value was stored via JSON.stringify
+    const userId = rawToken.replace(/^"|"$/g, "").trim();
+    if (userId) {
+      config.headers.Authorization = `Bearer ${userId}`;
+    }
   }
   return config;
 });
