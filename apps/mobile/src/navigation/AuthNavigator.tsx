@@ -20,6 +20,7 @@ export default function AuthNavigator() {
 
   return (
     <Stack.Navigator
+      key={initialScreen}
       screenOptions={{ headerShown: false }}
       initialRouteName={initialScreen}
     >

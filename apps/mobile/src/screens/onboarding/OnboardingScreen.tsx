@@ -138,7 +138,10 @@ export default function OnboardingScreen() {
   const markDoneAndGo = useCallback(
     async (target: "Login" | "Register") => {
       await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, "true");
-      navigation.replace("Auth", { initialScreen: target });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Auth", params: { initialScreen: target } }],
+      });
     },
     [navigation]
   );
