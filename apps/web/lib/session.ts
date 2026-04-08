@@ -17,7 +17,12 @@ export async function getRequiredSession(): Promise<SessionResult> {
     console.error("[session] Bearer raw userId:", raw);
     if (raw) {
       try {
-        const user = await prisma.user.findUnique({ where: { id: raw } });
+        const user = await prisma.user.findUnique({
+          where: { id: raw },
+          // Explicit select avoids SELECT * which breaks if schema columns
+          // (e.g. isSuperUser) haven't been migrated to the DB yet.
+          select: { id: true, email: true, name: true, language: true },
+        });
         if (user) {
           const mobileSession = {
             user: { id: user.id, email: user.email, name: user.name },

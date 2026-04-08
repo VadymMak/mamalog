@@ -1,0 +1,3 @@
+{
+  "buildCommand": "pnpm --filter @mamalog/database exec prisma db push && pnpm --filter @mamalog/database exec prisma generate && next build"
+}
