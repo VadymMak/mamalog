@@ -5,6 +5,7 @@ import CRM from "./screens/CRM";
 import UserDetail from "./screens/UserDetail";
 import Analytics from "./screens/Analytics";
 import ContentModeration from "./screens/ContentModeration";
+import KnowledgeBase from "./screens/KnowledgeBase";
 import "./styles.css";
 
 const NAV_ITEMS = [
@@ -69,6 +70,8 @@ export default function App() {
         return <SpecialistRequests showToast={showToast} />;
       case "content":
         return <ContentModeration />;
+      case "knowledge":
+        return <KnowledgeBase showToast={showToast} />;
       default:
         return (
           <PlaceholderScreen

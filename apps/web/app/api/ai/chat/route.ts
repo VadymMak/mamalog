@@ -102,8 +102,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const knowledgeLimit = isPremium ? 5 : 2;
       const knowledgeResults = await searchKnowledge(message, knowledgeLimit);
       if (knowledgeResults.length > 0) {
+        const sourceLabel: Record<string, string> = {
+          admin: "Администратор",
+          specialist: "Специалист",
+          mom: "Опыт мамы",
+        };
         knowledgeContext = knowledgeResults
-          .map((r) => `[${r.title}]: ${r.content.slice(0, isPremium ? 600 : 300)}\nSource: ${r.sourceType}`)
+          .map((r) => {
+            const stars = "★".repeat(r.trustIndex) + "☆".repeat(5 - r.trustIndex);
+            const src = sourceLabel[r.sourceType] ?? r.sourceType;
+            const snippet = r.content.slice(0, isPremium ? 600 : 300);
+            return `📚 Из нашей библиотеки (источник: ${src}, доверие: ${stars}):\n${r.title}\n${snippet}`;
+          })
           .join("\n\n");
       }
     } catch {

@@ -7,7 +7,10 @@ export interface KnowledgeResult {
   content: string;
   sourceType: string;
   authorName: string | null;
+  authorRole: string | null;
   tags: string[];
+  ageGroup: string | null;
+  trustIndex: number;
   similarity: number;
 }
 
@@ -18,7 +21,7 @@ export interface KnowledgeResult {
 export async function createEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
-    input: text.trim().slice(0, 8000), // model token limit safety
+    input: text.trim().slice(0, 8000),
   });
   const embedding = response.data[0]?.embedding;
   if (!embedding) throw new Error("No embedding returned from OpenAI");
@@ -27,7 +30,8 @@ export async function createEmbedding(text: string): Promise<number[]> {
 
 /**
  * Search knowledge base using pgvector cosine similarity.
- * Returns top N entries most semantically similar to the query.
+ * Results are ordered by trustIndex DESC first, then cosine similarity.
+ * Only returns approved (verified) entries.
  */
 export async function searchKnowledge(
   query: string,
@@ -36,8 +40,6 @@ export async function searchKnowledge(
   const queryEmbedding = await createEmbedding(query);
   const vectorLiteral = `[${queryEmbedding.join(",")}]`;
 
-  // pgvector cosine distance operator: <=>
-  // 1 - cosine_distance = cosine_similarity
   const rows = await prisma.$queryRawUnsafe<
     Array<{
       id: string;
@@ -45,7 +47,10 @@ export async function searchKnowledge(
       content: string;
       source_type: string;
       author_name: string | null;
+      author_role: string | null;
       tags: string[];
+      age_group: string | null;
+      trust_index: number;
       similarity: number;
     }>
   >(
@@ -56,12 +61,15 @@ export async function searchKnowledge(
       content,
       "sourceType"   AS source_type,
       "authorName"   AS author_name,
+      "authorRole"   AS author_role,
       tags,
+      "ageGroup"     AS age_group,
+      "trustIndex"   AS trust_index,
       1 - (embedding <=> $1::vector) AS similarity
     FROM "KnowledgeBase"
     WHERE embedding IS NOT NULL
-      AND verified = true
-    ORDER BY embedding <=> $1::vector
+      AND (status = 'approved' OR verified = true)
+    ORDER BY "trustIndex" DESC, embedding <=> $1::vector
     LIMIT $2
     `,
     vectorLiteral,
@@ -74,7 +82,10 @@ export async function searchKnowledge(
     content: row.content,
     sourceType: row.source_type,
     authorName: row.author_name,
+    authorRole: row.author_role,
     tags: row.tags,
+    ageGroup: row.age_group,
+    trustIndex: Number(row.trust_index),
     similarity: Number(row.similarity),
   }));
 }

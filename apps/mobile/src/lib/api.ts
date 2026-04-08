@@ -33,3 +33,18 @@ api.interceptors.response.use(
   (response) => response,
   (error: unknown) => Promise.reject(error)
 );
+
+/** Returns Authorization headers for use with native fetch() */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const rawToken =
+    (await AsyncStorage.getItem(STORAGE_KEYS.USER_ID)) ||
+    (await AsyncStorage.getItem("@mamalog/user_id")) ||
+    (await AsyncStorage.getItem("user_id"));
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (rawToken) {
+    const userId = rawToken.replace(/^"|"$/g, "").trim();
+    if (userId) headers.Authorization = `Bearer ${userId}`;
+  }
+  return headers;
+}

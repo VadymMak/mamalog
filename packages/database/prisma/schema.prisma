@@ -144,11 +144,15 @@ model KnowledgeBase {
   title       String
   content     String                          @db.Text
   embedding   Unsupported("vector(1536)")?
-  sourceType  String
+  sourceType  String                          // "admin" | "specialist" | "mom"
   verified    Boolean                         @default(false)
+  status      String                          @default("pending") // "pending" | "approved" | "rejected"
+  trustIndex  Int                             @default(3) // 1-5
   authorId    String?
   authorName  String?
+  authorRole  String?                         // "admin" | "psychologist" | "mom" etc
   tags        String[]
+  ageGroup    String?                         // "0-3" | "3-7" | "7-12" | "12+"
   createdAt   DateTime                        @default(now())
   updatedAt   DateTime                        @updatedAt
 }
