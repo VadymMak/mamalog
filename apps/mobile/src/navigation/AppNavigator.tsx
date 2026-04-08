@@ -37,23 +37,26 @@ export default function AppNavigator() {
     );
   }
 
+  const initialRoute: keyof RootStackParamList = !onboardingDone
+    ? "Onboarding"
+    : !isAuthenticated
+    ? "Auth"
+    : "Main";
+
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!onboardingDone ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : !isAuthenticated ? (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        ) : (
-          <>
-            <Stack.Screen name="Main" component={MainNavigator} />
-            <Stack.Screen
-              name="SOS"
-              component={SOSScreen}
-              options={{ presentation: "modal" }}
-            />
-          </>
-        )}
+      <Stack.Navigator
+        initialRouteName={initialRoute}
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Auth" component={AuthNavigator} />
+        <Stack.Screen name="Main" component={MainNavigator} />
+        <Stack.Screen
+          name="SOS"
+          component={SOSScreen}
+          options={{ presentation: "modal" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
