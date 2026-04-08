@@ -39,10 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn(user: AuthUser, token: string) {
+    // Set user first so isAuthenticated flips immediately and
+    // AppNavigator can react before AsyncStorage writes complete
+    setUser(user);
     await set(STORAGE_KEYS.USER, user);
     await set(STORAGE_KEYS.AUTH_TOKEN, token);
     await set(STORAGE_KEYS.USER_ID, user.id);
-    setUser(user);
   }
 
   async function signOut() {
