@@ -207,7 +207,7 @@ export default function LibraryScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ height: 40, flexShrink: 0 }}
+        style={{ height: 40, flexShrink: 0, marginTop: 4 }}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
       >
         {FILTER_CHIPS.map((f) => (
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
 
-  featuredWrapper: { marginTop: 8 },
+  featuredWrapper: { marginTop: 4 },
   featuredCard: {
     marginHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
