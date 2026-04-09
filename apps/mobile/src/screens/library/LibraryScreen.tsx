@@ -204,38 +204,40 @@ export default function LibraryScreen() {
       </View>
 
       {/* Category chips — horizontal scroll pills, fixed 40px row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ height: 40, flexShrink: 0, marginTop: 4 }}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
-      >
-        {FILTER_CHIPS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            onPress={() => setActiveFilter(f.key)}
-            activeOpacity={0.75}
-            style={{
-              paddingHorizontal: 16,
-              paddingVertical: 6,
-              borderRadius: 20,
-              backgroundColor: activeFilter === f.key ? colors.primary : "transparent",
-              borderWidth: 1,
-              borderColor: activeFilter === f.key ? colors.primary : colors.border,
-            }}
-          >
-            <Text
+      <View style={{ height: 40, flexShrink: 0, marginTop: 4 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
+        >
+          {FILTER_CHIPS.map((f) => (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setActiveFilter(f.key)}
+              activeOpacity={0.75}
               style={{
-                color: activeFilter === f.key ? "#fff" : colors.textSecondary,
-                fontSize: 14,
-                fontWeight: activeFilter === f.key ? "600" : "400",
+                paddingHorizontal: 16,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: activeFilter === f.key ? colors.primary : "transparent",
+                borderWidth: 1,
+                borderColor: activeFilter === f.key ? colors.primary : colors.border,
               }}
             >
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={{
+                  color: activeFilter === f.key ? "#fff" : colors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: activeFilter === f.key ? "600" : "400",
+                }}
+              >
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <ScrollView
         style={styles.scroll}
