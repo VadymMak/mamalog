@@ -153,6 +153,8 @@ model KnowledgeBase {
   authorRole  String?                         // "admin" | "psychologist" | "mom" etc
   tags        String[]
   ageGroup    String?                         // "0-3" | "3-7" | "7-12" | "12+"
+  aiScore     Int?                            // 0-100 from Claude moderation
+  aiReason    String?                         // explanation from Claude
   createdAt   DateTime                        @default(now())
   updatedAt   DateTime                        @updatedAt
 }

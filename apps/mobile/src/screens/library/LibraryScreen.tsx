@@ -102,7 +102,7 @@ function TrustStars({ index }: { index: number }) {
 
 export default function LibraryScreen() {
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParamList, "LibraryHome">>();
 
   const [articles, setArticles] = useState<KnowledgeArticle[]>(FALLBACK_ARTICLES);
   const [loading, setLoading] = useState(false);
@@ -369,6 +369,16 @@ export default function LibraryScreen() {
           </ScrollView>
         </View>
       </ScrollView>
+
+      {/* FAB — Submit article */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate("SubmitArticle")}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={18} color={colors.white} />
+        <Text style={styles.fabText}>{t("library.submitArticle")}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -513,4 +523,19 @@ const styles = StyleSheet.create({
 
   specialistsSection: { marginTop: spacing.lg },
   specialistsList: { paddingHorizontal: spacing.md, gap: spacing.sm },
+
+  fab: {
+    position: "absolute",
+    bottom: spacing.lg,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    ...shadows.md,
+  },
+  fabText: { ...typography.buttonSmall, color: colors.white, fontWeight: "600" },
 });

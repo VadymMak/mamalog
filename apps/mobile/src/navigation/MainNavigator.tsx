@@ -17,6 +17,7 @@ import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
 import AnalyticsScreen from "../screens/analytics/AnalyticsScreen";
 import LibraryScreen from "../screens/library/LibraryScreen";
 import ArticleDetailScreen from "../screens/library/ArticleDetailScreen";
+import SubmitArticleScreen from "../screens/library/SubmitArticleScreen";
 import type { RootStackParamList } from "./AppNavigator";
 import { colors, spacing } from "../theme";
 
@@ -43,6 +44,7 @@ export type BehaviorStackParamList = {
 export type LibraryStackParamList = {
   LibraryHome: undefined;
   ArticleDetail: { articleId: string };
+  SubmitArticle: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -146,6 +148,11 @@ function LibraryStackNavigator() {
       <LibraryStack.Screen
         name="ArticleDetail"
         component={ArticleDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <LibraryStack.Screen
+        name="SubmitArticle"
+        component={SubmitArticleScreen}
         options={{ headerShown: false }}
       />
     </LibraryStack.Navigator>
