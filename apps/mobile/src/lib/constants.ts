@@ -1,5 +1,5 @@
 export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+  process.env.EXPO_PUBLIC_API_URL ?? "https://mamalog-web.vercel.app";
 
 export const APP_VERSION = "1.0.0";
 
