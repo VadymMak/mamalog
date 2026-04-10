@@ -181,20 +181,32 @@ export default function PublicationsPage() {
                 <th className="text-left px-4 py-3">Заголовок</th>
                 <th className="text-left px-4 py-3">Автор</th>
                 <th className="text-left px-4 py-3">Категория</th>
+                <th className="text-left px-4 py-3">Источник</th>
                 <th className="text-left px-4 py-3">Статус</th>
                 <th className="text-left px-4 py-3">Дата</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
               {rows.map((row) => (
-                <tr key={row.id} className="transition-colors">
-                  <td className="px-4 py-3 text-white font-medium">{row.title}</td>
+                <tr key={row.id} className="hover:bg-slate-750 transition-colors">
+                  <td className="px-4 py-3 text-white font-medium max-w-xs truncate">{row.title}</td>
                   <td className="px-4 py-3 text-slate-300">{row.authorName ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-400">{row.tags[0] ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${row.status === "approved" ? "bg-green-600 text-white" : "bg-slate-600 text-slate-300"}`}>
-                      {row.status === "approved" ? "Опубликовано" : "Черновик"}
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                      {row.sourceType}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {row.status === "approved" && (
+                      <span className="text-xs px-2 py-0.5 rounded font-semibold bg-green-700 text-green-100">✅ Опубликовано</span>
+                    )}
+                    {row.status === "pending" && (
+                      <span className="text-xs px-2 py-0.5 rounded font-semibold bg-yellow-700 text-yellow-100">⏳ На проверке</span>
+                    )}
+                    {row.status === "rejected" && (
+                      <span className="text-xs px-2 py-0.5 rounded font-semibold bg-red-800 text-red-200">❌ Отклонено</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-400">
                     {new Date(row.createdAt).toLocaleDateString("ru-RU")}
