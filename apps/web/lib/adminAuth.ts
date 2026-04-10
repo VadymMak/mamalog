@@ -5,7 +5,8 @@ export type AdminAuthFail = { ok: false; response: NextResponse };
 export type AdminAuthResult = AdminAuthOk | AdminAuthFail;
 
 export function checkAdminKey(req: NextRequest): AdminAuthResult {
-  const key = req.headers.get("x-admin-key");
+  // x-admin-key header (Electron/desktop) OR httpOnly cookie (web client components)
+  const key = req.headers.get("x-admin-key") ?? req.cookies.get("adminToken")?.value;
   const secret = process.env.ADMIN_SECRET_KEY;
 
   if (!secret || key !== secret) {

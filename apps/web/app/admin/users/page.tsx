@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 async function getUsers() {
@@ -21,6 +22,14 @@ async function toggleSuperuser(userId: string, current: boolean) {
   "use server";
   const { prisma: db } = await import("@/lib/prisma");
   await db.user.update({ where: { id: userId }, data: { isSuperUser: !current } });
+  revalidatePath("/admin/users");
+}
+
+async function deleteUser(userId: string) {
+  "use server";
+  const { prisma: db } = await import("@/lib/prisma");
+  await db.user.delete({ where: { id: userId } });
+  revalidatePath("/admin/users");
 }
 
 export default async function UsersPage() {
@@ -45,6 +54,7 @@ export default async function UsersPage() {
               <th className="text-left px-4 py-3">Записей</th>
               <th className="text-left px-4 py-3">Регистрация</th>
               <th className="text-left px-4 py-3">SU</th>
+              <th className="text-left px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
@@ -76,6 +86,17 @@ export default async function UsersPage() {
                         className={`text-xs px-2 py-1 rounded transition-colors ${u.isSuperUser ? "bg-yellow-500 text-black hover:bg-yellow-400" : "bg-slate-600 text-slate-300 hover:bg-slate-500"}`}
                       >
                         {u.isSuperUser ? "★ SU" : "☆ SU"}
+                      </button>
+                    </form>
+                  </td>
+                  <td className="px-4 py-3">
+                    <form action={deleteUser.bind(null, u.id)}>
+                      <button
+                        type="submit"
+                        className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-red-800 text-slate-400 hover:text-white transition-colors"
+                        title="Удалить пользователя"
+                      >
+                        🗑️
                       </button>
                     </form>
                   </td>

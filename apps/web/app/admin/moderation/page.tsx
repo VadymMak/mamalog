@@ -66,8 +66,25 @@ export default function ModerationPage() {
     try {
       await fetch("/api/admin/moderation", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-key": getAdminToken() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, action }),
+      });
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch {
+      // silently keep item
+    } finally {
+      setActioning(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Удалить статью навсегда?")) return;
+    setActioning(id);
+    try {
+      await fetch("/api/admin/moderation", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
       });
       setItems((prev) => prev.filter((item) => item.id !== id));
     } catch {
@@ -171,6 +188,14 @@ export default function ModerationPage() {
                       </button>
                     </>
                   )}
+                  <button
+                    disabled={actioning === item.id}
+                    onClick={() => handleDelete(item.id)}
+                    className="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors disabled:opacity-60"
+                    title="Удалить навсегда"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
 

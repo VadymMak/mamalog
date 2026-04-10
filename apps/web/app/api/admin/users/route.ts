@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAdminKey, adminAuthResponse } from "@/lib/adminAuth";
 
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  const auth = checkAdminKey(req);
+  if (!auth.ok) return adminAuthResponse(auth);
+
+  const { id } = await req.json() as { id: string };
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  await prisma.user.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = checkAdminKey(req);
   if (!auth.ok) return adminAuthResponse(auth);
