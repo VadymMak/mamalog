@@ -154,6 +154,7 @@ const ru = {
   },
   newBehavior: {
     selectCategory: "Тип поведения",
+    selectCategoryError: "Пожалуйста, выберите тип поведения",
     contextLabel: "Где это произошло?",
     contextPlaceholder: "Опишите ситуацию...",
     triggerLabel: "Что спровоцировало?",
@@ -435,6 +436,7 @@ const en = {
   },
   newBehavior: {
     selectCategory: "Behavior type",
+    selectCategoryError: "Please select a behavior type",
     contextLabel: "Where did it happen?",
     contextPlaceholder: "Describe the situation...",
     triggerLabel: "What triggered it?",

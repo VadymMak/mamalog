@@ -84,7 +84,7 @@ export default function NewBehaviorScreen() {
 
   async function handleSave() {
     if (!category) {
-      Alert.alert(t("common.error"), t("newBehavior.selectCategory"));
+      Alert.alert(t("common.error"), t("newBehavior.selectCategoryError"));
       return;
     }
     setSaving(true);
