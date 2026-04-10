@@ -1,11 +1,5 @@
 import { cookies } from "next/headers";
-
-interface Stats {
-  totalUsers: number;
-  activeToday: number;
-  pendingSpecialists: number;
-  totalLogEntries: number;
-}
+import { prisma } from "@/lib/prisma";
 
 const CARDS = [
   { key: "totalUsers" as const, label: "Всего пользователей", icon: "👥" },
@@ -14,24 +8,40 @@ const CARDS = [
   { key: "totalLogEntries" as const, label: "Записей в дневнике", icon: "📔" },
 ];
 
-async function getStats(token: string): Promise<Stats | null> {
+interface Stats {
+  totalUsers: number;
+  activeToday: number;
+  pendingSpecialists: number;
+  totalLogEntries: number;
+}
+
+async function getStats(): Promise<Stats | null> {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/admin/stats`, {
-      headers: { "x-admin-key": token },
-      cache: "no-store",
-    });
-    const json = await res.json();
-    return json.success ? json.data : null;
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const [totalUsers, pendingSpecialists, totalLogEntries, activeTodayEntries] =
+      await prisma.$transaction([
+        prisma.user.count(),
+        prisma.specialist.count({ where: { status: "PENDING" } }),
+        prisma.logEntry.count(),
+        prisma.logEntry.findMany({
+          where: { createdAt: { gte: todayStart } },
+          select: { userId: true },
+          distinct: ["userId"],
+        }),
+      ]);
+
+    return { totalUsers, activeToday: activeTodayEntries.length, pendingSpecialists, totalLogEntries };
   } catch {
     return null;
   }
 }
 
 export default async function AdminDashboard() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("adminToken")?.value ?? "";
-  const stats = await getStats(token);
+  // Cookie check is handled by layout — we just load data here
+  await cookies(); // ensure dynamic rendering
+  const stats = await getStats();
 
   return (
     <div>
@@ -41,7 +51,7 @@ export default async function AdminDashboard() {
           <div key={c.key} className="bg-slate-800 rounded-xl p-6">
             <div className="text-3xl mb-2">{c.icon}</div>
             <div className="text-3xl font-bold text-white">
-              {stats ? (stats[c.key] ?? "—") : "…"}
+              {stats ? (stats[c.key] ?? "—") : "—"}
             </div>
             <div className="text-sm text-slate-400 mt-1">{c.label}</div>
           </div>
