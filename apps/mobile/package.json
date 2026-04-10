@@ -30,6 +30,7 @@
     "react-i18next": "^15.7.4",
     "react-native": "^0.76.9",
     "react-native-chart-kit": "^6.12.0",
+    "react-native-markdown-display": "^7.0.2",
     "react-native-safe-area-context": "~4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-svg": "^15.8.0",
@@ -51,7 +52,10 @@
     },
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["metro", "react-native-chart-kit"],
+        "exclude": [
+          "metro",
+          "react-native-chart-kit"
+        ],
         "listUnknownPackages": false
       }
     }

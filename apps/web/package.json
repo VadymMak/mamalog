@@ -13,6 +13,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@mamalog/database": "workspace:*",
     "@prisma/client": "^6.19.3",
+    "@uiw/react-md-editor": "^4.1.0",
     "bcryptjs": "^3.0.3",
     "next": "16.2.2",
     "next-auth": "^4.24.13",

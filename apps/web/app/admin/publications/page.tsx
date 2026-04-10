@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
+const MDPreview = dynamic(() => import("@uiw/react-md-editor").then((m) => m.default.Markdown), { ssr: false });
 
 interface Publication {
   id: string;
@@ -92,34 +96,53 @@ export default function PublicationsPage() {
       {showForm && (
         <form onSubmit={handleSave} className="bg-slate-800 rounded-xl p-6 mb-6 flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-white">Новая статья</h2>
-          <input
-            required
-            placeholder="Заголовок *"
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-          />
-          <input
-            placeholder="Имя автора"
-            value={form.authorName}
-            onChange={(e) => setForm((f) => ({ ...f, authorName: e.target.value }))}
-            className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              required
+              placeholder="Заголовок *"
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+            />
+            <input
+              placeholder="Имя автора"
+              value={form.authorName}
+              onChange={(e) => setForm((f) => ({ ...f, authorName: e.target.value }))}
+              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
           <select
             value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-            className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-indigo-500"
+            className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-indigo-500 w-48"
           >
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
-          <textarea
-            required
-            placeholder="Содержание статьи *"
-            rows={8}
-            value={form.content}
-            onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-            className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-y"
-          />
+
+          {/* Markdown editor + preview */}
+          <div className="grid grid-cols-2 gap-4" data-color-mode="dark">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Редактор (Markdown)</label>
+              <MDEditor
+                value={form.content}
+                onChange={(v) => setForm((f) => ({ ...f, content: v ?? "" }))}
+                height={400}
+                preview="edit"
+              />
+              <p className="text-xs text-slate-500">
+                <span className="font-mono">**жирный**</span> · <span className="font-mono">*курсив*</span> · <span className="font-mono">## Заголовок</span> · <span className="font-mono">- список</span> · <span className="font-mono">&gt; цитата</span>
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Предпросмотр</label>
+              <div className="bg-white rounded-lg p-4 min-h-[400px] overflow-auto prose prose-sm max-w-none">
+                <MDPreview source={form.content} />
+              </div>
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="checkbox"
@@ -129,11 +152,12 @@ export default function PublicationsPage() {
             />
             Опубликовать сразу
           </label>
+
           {saveError && <p className="text-red-400 text-sm">{saveError}</p>}
           <button
             type="submit"
             disabled={saving}
-            className="py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors disabled:opacity-60"
+            className="py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors disabled:opacity-60 w-48"
           >
             {saving ? "Сохранение..." : "Сохранить статью"}
           </button>
@@ -163,7 +187,7 @@ export default function PublicationsPage() {
             </thead>
             <tbody className="divide-y divide-slate-700">
               {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-750 transition-colors">
+                <tr key={row.id} className="transition-colors">
                   <td className="px-4 py-3 text-white font-medium">{row.title}</td>
                   <td className="px-4 py-3 text-slate-300">{row.authorName ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-400">{row.tags[0] ?? "—"}</td>

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import Markdown from "react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp, RouteProp } from "@react-navigation/native-stack";
@@ -103,7 +104,7 @@ export default function ArticleDetailScreen() {
 
         {/* Content */}
         <View style={styles.contentBlock}>
-          <Text style={styles.contentText}>{article.content}</Text>
+          <Markdown style={markdownStyles}>{article.content}</Markdown>
         </View>
 
         {/* Related articles */}
@@ -137,6 +138,20 @@ export default function ArticleDetailScreen() {
     </SafeAreaView>
   );
 }
+
+const markdownStyles = {
+  body: { color: colors.textPrimary, fontSize: 15, lineHeight: 24 },
+  heading1: { color: colors.textPrimary, fontSize: 22, fontWeight: "700" as const, marginBottom: 8, marginTop: 16 },
+  heading2: { color: colors.textPrimary, fontSize: 18, fontWeight: "700" as const, marginBottom: 6, marginTop: 12 },
+  heading3: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" as const, marginBottom: 4, marginTop: 10 },
+  strong: { fontWeight: "700" as const },
+  em: { fontStyle: "italic" as const },
+  bullet_list: { marginLeft: 8 },
+  ordered_list: { marginLeft: 8 },
+  blockquote: { backgroundColor: colors.surfaceSecondary, borderLeftColor: colors.primary, borderLeftWidth: 3, paddingLeft: 12, paddingVertical: 4, borderRadius: 4 },
+  code_inline: { backgroundColor: colors.surfaceSecondary, color: colors.primary, borderRadius: 4, paddingHorizontal: 4 },
+  fence: { backgroundColor: colors.surfaceSecondary, borderRadius: 8, padding: 12 },
+};
 
 const styles = StyleSheet.create({
   safe: {
