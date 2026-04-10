@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -41,6 +41,11 @@ export default function PublicationsPage() {
   const [importForm, setImportForm] = useState(EMPTY_IMPORT);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Filter / sort state
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "category">("date_desc");
 
   async function load() {
     setLoading(true);
@@ -107,6 +112,23 @@ export default function PublicationsPage() {
       setImporting(false);
     }
   }
+
+  const filteredRows = useMemo(() => {
+    let result = [...rows];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((r) => r.title.toLowerCase().includes(q));
+    }
+    if (filterCategory) {
+      result = result.filter((r) => r.tags.includes(filterCategory));
+    }
+    result.sort((a, b) => {
+      if (sortBy === "date_asc") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "category") return (a.tags[0] ?? "").localeCompare(b.tags[0] ?? "");
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // date_desc
+    });
+    return result;
+  }, [rows, search, filterCategory, sortBy]);
 
   return (
     <div>
@@ -247,12 +269,46 @@ export default function PublicationsPage() {
 
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
+      {/* Search / Filter / Sort */}
+      {!loading && rows.length > 0 && (
+        <div className="flex gap-3 mb-4 flex-wrap">
+          <input
+            type="text"
+            placeholder="🔍 Поиск по заголовку..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 min-w-48 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500"
+          />
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">Все категории</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+          >
+            <option value="date_desc">Новые сначала</option>
+            <option value="date_asc">Старые сначала</option>
+            <option value="category">По категории</option>
+          </select>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-slate-400 py-12 text-center">Загрузка...</div>
       ) : rows.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <div className="text-5xl mb-3">📄</div>
           <p>Нет публикаций. Добавьте первую статью.</p>
+        </div>
+      ) : filteredRows.length === 0 ? (
+        <div className="text-center py-12 text-slate-400">
+          <p>Ничего не найдено. Измените фильтры.</p>
         </div>
       ) : (
         <div className="bg-slate-800 rounded-xl overflow-hidden">
@@ -268,7 +324,7 @@ export default function PublicationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
-              {rows.map((row) => (
+              {filteredRows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-750 transition-colors">
                   <td className="px-4 py-3 text-white font-medium max-w-xs truncate">{row.title}</td>
                   <td className="px-4 py-3 text-slate-300">{row.authorName ?? "—"}</td>

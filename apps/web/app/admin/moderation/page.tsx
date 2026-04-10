@@ -54,6 +54,8 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "rejected", label: "❌ Отклонено" },
 ];
 
+const CATEGORIES = ["Речь", "Эмоции", "Поведение", "Мама", "Сенсорика", "Другое"];
+
 export default function ModerationPage() {
   const [allItems, setAllItems] = useState<ModerationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,11 @@ export default function ModerationPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Filter / sort state
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "score_desc" | "score_asc">("date_desc");
 
   async function load() {
     setLoading(true);
@@ -87,10 +94,23 @@ export default function ModerationPage() {
 
   useEffect(() => { load(); }, []);
 
-  const items = useMemo(
-    () => activeTab === "all" ? allItems : allItems.filter((i) => i.status === activeTab),
-    [allItems, activeTab]
-  );
+  const items = useMemo(() => {
+    let result = activeTab === "all" ? allItems : allItems.filter((i) => i.status === activeTab);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((i) => i.title.toLowerCase().includes(q));
+    }
+    if (filterCategory) {
+      result = result.filter((i) => i.tags.includes(filterCategory));
+    }
+    result = [...result].sort((a, b) => {
+      if (sortBy === "date_asc")   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "score_desc") return (b.aiScore ?? 0) - (a.aiScore ?? 0);
+      if (sortBy === "score_asc")  return (a.aiScore ?? 0) - (b.aiScore ?? 0);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // date_desc
+    });
+    return result;
+  }, [allItems, activeTab, search, filterCategory, sortBy]);
 
   const counts = useMemo(() => ({
     all:      allItems.length,
@@ -168,6 +188,37 @@ export default function ModerationPage() {
         ))}
       </div>
 
+      {/* Search / Filter / Sort */}
+      {!loading && allItems.length > 0 && (
+        <div className="flex gap-3 mb-4 flex-wrap">
+          <input
+            type="text"
+            placeholder="🔍 Поиск по заголовку..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 min-w-48 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500"
+          />
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">Все категории</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+          >
+            <option value="date_desc">Новые сначала</option>
+            <option value="date_asc">Старые сначала</option>
+            <option value="score_desc">AI оценка ↓</option>
+            <option value="score_asc">AI оценка ↑</option>
+          </select>
+        </div>
+      )}
+
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
       {loading ? (
@@ -175,7 +226,7 @@ export default function ModerationPage() {
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <div className="text-5xl mb-3">📭</div>
-          <p>Нет статей в этом разделе</p>
+          <p>{search || filterCategory ? "Ничего не найдено. Измените фильтры." : "Нет статей в этом разделе"}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
