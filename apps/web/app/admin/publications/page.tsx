@@ -25,6 +25,7 @@ function getAdminToken(): string {
 }
 
 const EMPTY_FORM = { title: "", content: "", category: "Поведение", authorName: "", isPublished: false };
+const EMPTY_IMPORT = { url: "", category: "Поведение" };
 
 export default function PublicationsPage() {
   const [rows, setRows] = useState<Publication[]>([]);
@@ -34,6 +35,12 @@ export default function PublicationsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importForm, setImportForm] = useState(EMPTY_IMPORT);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -75,6 +82,32 @@ export default function PublicationsPage() {
     }
   }
 
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importForm.url.trim()) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/admin/import-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(importForm),
+      });
+      const json = await res.json() as { success: boolean; title?: string; error?: string };
+      if (json.success) {
+        setImportResult({ ok: true, message: `✅ Добавлено: «${json.title}»` });
+        setImportForm(EMPTY_IMPORT);
+        load();
+      } else {
+        setImportResult({ ok: false, message: json.error ?? "Ошибка импорта" });
+      }
+    } catch {
+      setImportResult({ ok: false, message: "Ошибка подключения" });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -84,13 +117,61 @@ export default function PublicationsPage() {
             ↻ Обновить
           </button>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => { setShowImport((v) => !v); setShowForm(false); setImportResult(null); }}
+            className="px-4 py-1.5 text-sm bg-teal-700 hover:bg-teal-600 rounded-lg text-white font-semibold transition-colors"
+          >
+            {showImport ? "✕ Отмена" : "🔗 Импорт по URL"}
+          </button>
+          <button
+            onClick={() => { setShowForm((v) => !v); setShowImport(false); }}
             className="px-4 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-semibold transition-colors"
           >
             {showForm ? "✕ Отмена" : "+ Добавить статью"}
           </button>
         </div>
       </div>
+
+      {/* Import form */}
+      {showImport && (
+        <form onSubmit={handleImport} className="bg-slate-800 rounded-xl p-6 mb-6 flex flex-col gap-4 border border-teal-800">
+          <h2 className="text-lg font-semibold text-white">🔗 Импорт статьи по URL</h2>
+          <p className="text-slate-400 text-sm">
+            Вставьте ссылку на статью — Claude прочитает страницу и отформатирует контент в Markdown.
+          </p>
+
+          <div className="flex gap-3">
+            <input
+              required
+              type="url"
+              placeholder="https://example.com/article"
+              value={importForm.url}
+              onChange={(e) => setImportForm((f) => ({ ...f, url: e.target.value }))}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
+            />
+            <select
+              value={importForm.category}
+              onChange={(e) => setImportForm((f) => ({ ...f, category: e.target.value }))}
+              className="px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-teal-500 w-40"
+            >
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {importResult && (
+            <p className={`text-sm font-medium ${importResult.ok ? "text-green-400" : "text-red-400"}`}>
+              {importResult.message}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={importing}
+            className="py-2.5 rounded-lg bg-teal-700 hover:bg-teal-600 text-white font-semibold transition-colors disabled:opacity-60 w-56"
+          >
+            {importing ? "⏳ Читаем и форматируем..." : "🔗 Импортировать"}
+          </button>
+        </form>
+      )}
 
       {/* Form */}
       {showForm && (
