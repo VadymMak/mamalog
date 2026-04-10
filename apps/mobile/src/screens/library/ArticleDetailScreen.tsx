@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,25 +15,85 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import { ARTICLES } from "../../data/articles";
 import type { LibraryStackParamList } from "../../navigation/MainNavigator";
+import { API_URL } from "../../lib/constants";
+import { getAuthHeaders } from "../../lib/api";
 
 type NavProp = NativeStackNavigationProp<LibraryStackParamList, "ArticleDetail">;
 type RoutePropType = RouteProp<LibraryStackParamList, "ArticleDetail">;
+
+interface RemoteArticle {
+  id: string;
+  title: string;
+  content: string;
+  sourceType: string;
+  authorName: string | null;
+  authorRole: string | null;
+  tags: string[];
+  trustIndex: number;
+  createdAt: string;
+}
+
+const CARD_COLORS = [
+  "#6B46C1", "#D53F8C", "#38A169", "#D69E2E",
+  "#3182CE", "#E53E3E", "#805AD5", "#2C7A7B",
+];
+
+function colorFromId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length] ?? "#6B46C1";
+}
 
 export default function ArticleDetailScreen() {
   const navigation = useNavigation<NavProp>();
   const { params } = useRoute<RoutePropType>();
   const [bookmarked, setBookmarked] = useState(false);
+  const [remote, setRemote] = useState<RemoteArticle | null>(null);
+  const [loadingRemote, setLoadingRemote] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
-  const article = ARTICLES.find((a) => a.id === params.articleId);
+  // Try local first
+  const localArticle = ARTICLES.find((a) => a.id === params.articleId);
 
+  useEffect(() => {
+    if (localArticle) return; // found locally, no fetch needed
+    setLoadingRemote(true);
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${API_URL}/api/articles/${params.articleId}`, { headers });
+        if (!res.ok) { setNotFound(true); return; }
+        const json = await res.json() as { data?: RemoteArticle };
+        if (json.data) setRemote(json.data);
+        else setNotFound(true);
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoadingRemote(false);
+      }
+    })();
+  }, [params.articleId]);
+
+  // Related articles (local only)
   const related = ARTICLES.filter(
-    (a) => a.id !== params.articleId && a.category === article?.category
+    (a) => a.id !== params.articleId && a.category === localArticle?.category
   ).slice(0, 2);
-
   const fallbackRelated = ARTICLES.filter((a) => a.id !== params.articleId).slice(0, 2);
   const relatedArticles = related.length >= 2 ? related : fallbackRelated;
 
-  if (!article) {
+  // Loading state
+  if (loadingRemote) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.notFound}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Not found
+  if (!localArticle && !remote || notFound) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.notFound}>
@@ -45,10 +106,23 @@ export default function ArticleDetailScreen() {
     );
   }
 
+  // Unified view data
+  const isRemote = !localArticle && !!remote;
+  const articleColor = isRemote ? colorFromId(remote!.id) : localArticle!.color;
+
+  const title = isRemote ? remote!.title : localArticle!.title;
+  const content = isRemote ? remote!.content : localArticle!.content;
+  const authorName = isRemote ? (remote!.authorName ?? "Автор") : localArticle!.author;
+  const authorRole = isRemote ? (remote!.authorRole ?? remote!.sourceType) : localArticle!.specialty;
+  const category = isRemote ? (remote!.tags[0] ?? remote!.sourceType) : localArticle!.category;
+  const readTime = isRemote
+    ? Math.max(1, Math.round(remote!.content.split(" ").length / 200))
+    : localArticle!.readTime;
+
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: article.color }]}>
+      <View style={[styles.header, { backgroundColor: articleColor }]}>
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={() => navigation.goBack()}
@@ -70,12 +144,12 @@ export default function ArticleDetailScreen() {
       </View>
 
       {/* Cover */}
-      <View style={[styles.cover, { backgroundColor: article.color }]}>
+      <View style={[styles.cover, { backgroundColor: articleColor }]}>
         <View style={styles.categoryPill}>
-          <Text style={styles.categoryText}>{article.category}</Text>
+          <Text style={styles.categoryText}>{category}</Text>
         </View>
-        <Text style={styles.coverTitle}>{article.title}</Text>
-        <Text style={styles.coverMeta}>{article.readTime} мин чтения</Text>
+        <Text style={styles.coverTitle}>{title}</Text>
+        <Text style={styles.coverMeta}>{readTime} мин чтения</Text>
       </View>
 
       <ScrollView
@@ -85,9 +159,9 @@ export default function ArticleDetailScreen() {
       >
         {/* Author */}
         <View style={styles.authorCard}>
-          <View style={[styles.authorAvatar, { backgroundColor: article.color }]}>
+          <View style={[styles.authorAvatar, { backgroundColor: articleColor }]}>
             <Text style={styles.authorInitials}>
-              {article.author
+              {authorName
                 .split(" ")
                 .map((w) => w[0])
                 .join("")
@@ -95,20 +169,20 @@ export default function ArticleDetailScreen() {
             </Text>
           </View>
           <View style={styles.authorInfo}>
-            <Text style={styles.authorName}>{article.author}</Text>
+            <Text style={styles.authorName}>{authorName}</Text>
             <View style={styles.specialtyBadge}>
-              <Text style={styles.specialtyText}>{article.specialty}</Text>
+              <Text style={styles.specialtyText}>{authorRole}</Text>
             </View>
           </View>
         </View>
 
         {/* Content */}
         <View style={styles.contentBlock}>
-          <Markdown style={markdownStyles}>{article.content}</Markdown>
+          <Markdown style={markdownStyles}>{content}</Markdown>
         </View>
 
-        {/* Related articles */}
-        {relatedArticles.length > 0 && (
+        {/* Related articles — only shown for local articles */}
+        {!isRemote && relatedArticles.length > 0 && (
           <View style={styles.relatedSection}>
             <Text style={styles.relatedTitle}>Похожие статьи</Text>
             {relatedArticles.map((rel) => (
@@ -256,11 +330,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
-  },
-  contentText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    lineHeight: 24,
   },
   relatedSection: {
     marginTop: spacing.lg,
