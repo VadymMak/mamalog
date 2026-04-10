@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import Login from "./screens/Login";
 import Dashboard from "./screens/Dashboard";
 import SpecialistRequests from "./screens/SpecialistRequests";
 import CRM from "./screens/CRM";
@@ -32,6 +33,7 @@ function PlaceholderScreen({ title }) {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem("adminToken"));
   const [active, setActive] = useState("analytics");
   const [selectedUser, setSelectedUser] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -80,6 +82,8 @@ export default function App() {
         );
     }
   }
+
+  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
   return (
     <div className="layout">
