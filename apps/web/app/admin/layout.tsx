@@ -14,7 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const secret = process.env.ADMIN_SECRET_KEY;
 
   if (!token || token !== secret) {
-    redirect("/admin/login");
+    redirect("/admin-login");
   }
 
   return (
