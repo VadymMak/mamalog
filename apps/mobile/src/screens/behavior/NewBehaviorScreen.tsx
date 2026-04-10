@@ -30,13 +30,13 @@ const CATEGORY_KEYS = [
 type CategoryKey = (typeof CATEGORY_KEYS)[number];
 
 const CATEGORY_VALUES: Record<CategoryKey, string> = {
-  aggression:     "агрессия",
-  avoidance:      "избегание",
-  stereotypies:   "стереотипии",
-  sensorOverload: "сенсорная перегрузка",
-  regression:     "регресс",
-  hyperactivity:  "гиперактивность",
-  anxiety:        "тревожность",
+  aggression:     "aggression",
+  avoidance:      "avoidance",
+  stereotypies:   "stereotypy",
+  sensorOverload: "sensory_overload",
+  regression:     "regression",
+  hyperactivity:  "hyperactivity",
+  anxiety:        "anxiety",
 };
 
 const CATEGORY_COLORS: Record<CategoryKey, string> = {
@@ -60,7 +60,7 @@ export default function NewBehaviorScreen() {
   const route = useRoute<RouteProp<BehaviorStackParamList, "NewBehavior">>();
   const logEntryId = route.params?.logEntryId;
 
-  const [category, setCategory] = useState<CategoryKey | null>(null);
+  const [category, setCategory] = useState<CategoryKey>("aggression");
   const [context, setContext] = useState("");
   const [trigger, setTrigger] = useState("");
   const [intensity, setIntensity] = useState(5);
@@ -83,6 +83,7 @@ export default function NewBehaviorScreen() {
   }
 
   async function handleSave() {
+    // category always has a value (default: "aggression"), but guard just in case
     if (!category) {
       Alert.alert(t("common.error"), t("newBehavior.selectCategoryError"));
       return;

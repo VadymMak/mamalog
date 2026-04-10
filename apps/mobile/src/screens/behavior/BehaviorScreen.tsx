@@ -51,13 +51,13 @@ const CATEGORY_KEYS = [
 type CategoryKey = (typeof CATEGORY_KEYS)[number];
 
 const CATEGORY_VALUES: Record<CategoryKey, string> = {
-  aggression:     "агрессия",
-  avoidance:      "избегание",
-  stereotypies:   "стереотипии",
-  sensorOverload: "сенсорная перегрузка",
-  regression:     "регресс",
-  hyperactivity:  "гиперактивность",
-  anxiety:        "тревожность",
+  aggression:     "aggression",
+  avoidance:      "avoidance",
+  stereotypies:   "stereotypy",
+  sensorOverload: "sensory_overload",
+  regression:     "regression",
+  hyperactivity:  "hyperactivity",
+  anxiety:        "anxiety",
 };
 
 const CATEGORY_COLORS: Record<CategoryKey, string> = {
@@ -325,7 +325,23 @@ export default function BehaviorScreen() {
       {/* FAB */}
       <TouchableOpacity
         style={commonStyles.fab}
-        onPress={() => navigation.navigate("NewBehavior", { logEntryId: todayLogId ?? undefined })}
+        onPress={async () => {
+          let logId = todayLogId;
+          if (!logId) {
+            try {
+              const res = await api.post<{ success: boolean; data: { id: string } }>("/api/log", {
+                moodScore: 5,
+                emotions: [],
+                triggers: [],
+              });
+              logId = res.data.data.id;
+              setTodayLogId(logId);
+            } catch {
+              // navigate anyway — NewBehaviorScreen will surface the error on save
+            }
+          }
+          navigation.navigate("NewBehavior", { logEntryId: logId ?? undefined });
+        }}
         activeOpacity={0.85}
       >
         <Text style={styles.fabText}>+</Text>
