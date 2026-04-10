@@ -22,21 +22,22 @@ function createWindow() {
   }
 }
 
-const menu = Menu.buildFromTemplate([
-  {
-    label: "File",
-    submenu: [
-      {
-        label: "Quit",
-        accelerator: process.platform === "darwin" ? "Cmd+Q" : "Ctrl+Q",
-        click: () => app.quit(),
-      },
-    ],
-  },
-]);
-Menu.setApplicationMenu(menu);
-
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Quit",
+          accelerator: process.platform === "darwin" ? "Cmd+Q" : "Ctrl+Q",
+          click: () => app.quit(),
+        },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

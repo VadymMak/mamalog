@@ -4,7 +4,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "concurrently \"vite\" \"electron .\"",
+    "dev": "concurrently \"vite\" \"env -u ELECTRON_RUN_AS_NODE -u ELECTRON_NO_ATTACH_CONSOLE NODE_ENV=development electron .\"",
     "build": "vite build && electron-builder"
   },
   "dependencies": {
