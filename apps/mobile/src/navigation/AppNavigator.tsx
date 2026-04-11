@@ -7,6 +7,7 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthContext } from "../context/AuthContext";
+import { usePushToken } from "../hooks/usePushToken";
 import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 import SOSScreen from "../screens/sos/SOSScreen";
@@ -24,6 +25,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  usePushToken(isAuthenticated);
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const navRef = useNavigationContainerRef<RootStackParamList>();
 

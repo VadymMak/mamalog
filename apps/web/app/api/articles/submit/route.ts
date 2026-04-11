@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
+import { sendExpoPush } from "@/lib/push";
 
 interface ModerationResult {
   score: number;
@@ -104,6 +105,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     if (status === "approved") {
+      // Notify all users about new article (best-effort, don't block response)
+      prisma.user.findMany({ where: { pushToken: { not: null } }, select: { pushToken: true } })
+        .then((users) => {
+          const tokens = users.map((u) => u.pushToken).filter(Boolean) as string[];
+          return sendExpoPush(tokens, {
+            title: "📚 Новая статья в библиотеке",
+            body: title.trim(),
+            data: { type: "new_article" },
+          });
+        })
+        .catch(() => {}); // silent fail — notifications are non-critical
+
       return NextResponse.json({
         success: true,
         status: "approved",

@@ -26,6 +26,11 @@ export default function CRM({ showToast, onUserClick }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [togglingId, setTogglingId] = useState(null);
+  const [notifyModal, setNotifyModal] = useState(false);
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyBody, setNotifyBody] = useState("");
+  const [notifySegment, setNotifySegment] = useState("all");
+  const [notifySending, setNotifySending] = useState(false);
 
   const load = useCallback((p = 0) => {
     setLoading(true);
@@ -76,6 +81,26 @@ export default function CRM({ showToast, onUserClick }) {
   const superCount = rows.filter((u) => u.isSuperUser).length;
   const conversion = total > 0 ? ((premiumCount / total) * 100).toFixed(1) : "0.0";
 
+  async function sendNotification() {
+    if (!notifyTitle.trim() || !notifyBody.trim()) return;
+    setNotifySending(true);
+    try {
+      const res = await api.post("/api/admin/notify", {
+        title: notifyTitle.trim(),
+        body: notifyBody.trim(),
+        segment: notifySegment,
+      });
+      showToast(`Отправлено: ${res.data.data?.sent ?? 0} устройств`);
+      setNotifyModal(false);
+      setNotifyTitle("");
+      setNotifyBody("");
+    } catch {
+      showToast("Не удалось отправить уведомление", "error");
+    } finally {
+      setNotifySending(false);
+    }
+  }
+
   async function toggleSuperuser(user) {
     setTogglingId(user.id);
     try {
@@ -103,8 +128,58 @@ export default function CRM({ showToast, onUserClick }) {
           CRM — Управление клиентами
           {total > 0 && <span className="screen-count">{total}</span>}
         </h1>
-        <button className="btn-refresh" onClick={() => load(page)}>↻ Обновить</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-refresh" onClick={() => load(page)}>↻ Обновить</button>
+          <button
+            className="btn btn-approve"
+            style={{ padding: "6px 14px", fontSize: 13 }}
+            onClick={() => setNotifyModal(true)}
+          >
+            🔔 Уведомление
+          </button>
+        </div>
       </div>
+
+      {/* Notify modal */}
+      {notifyModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#1a1a2e", borderRadius: 12, padding: 28, width: 420, display: "flex", flexDirection: "column", gap: 14 }}>
+            <h2 style={{ margin: 0, color: "#fff", fontSize: 16 }}>🔔 Отправить уведомление</h2>
+            <select
+              value={notifySegment}
+              onChange={(e) => setNotifySegment(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #333", background: "#0d1117", color: "#fff", fontSize: 13 }}
+            >
+              <option value="all">Все пользователи</option>
+              <option value="premium">Только Premium</option>
+              <option value="free">Только Free</option>
+            </select>
+            <input
+              placeholder="Заголовок"
+              value={notifyTitle}
+              onChange={(e) => setNotifyTitle(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #333", background: "#0d1117", color: "#fff", fontSize: 13 }}
+            />
+            <textarea
+              placeholder="Текст уведомления"
+              value={notifyBody}
+              onChange={(e) => setNotifyBody(e.target.value)}
+              rows={3}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #333", background: "#0d1117", color: "#fff", fontSize: 13, resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn" onClick={() => setNotifyModal(false)}>Отмена</button>
+              <button
+                className="btn btn-approve"
+                onClick={sendNotification}
+                disabled={notifySending || !notifyTitle.trim() || !notifyBody.trim()}
+              >
+                {notifySending ? "Отправка..." : "Отправить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>

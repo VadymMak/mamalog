@@ -34,6 +34,9 @@ async function migrate() {
     // Backfill: mark existing KnowledgeBase rows as approved if verified=true
     'UPDATE "KnowledgeBase" SET "status" = \'approved\' WHERE "verified" = true AND "status" = \'approved\'',
 
+    // Push token for Expo notifications
+    'ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "pushToken" TEXT',
+
     // Bookmark table
     `CREATE TABLE IF NOT EXISTS "Bookmark" (
       "id" TEXT NOT NULL,
