@@ -5,12 +5,6 @@ cd ~/Documents/projects/mamalog/apps/mobile
 
 npx expo prebuild --platform android --clean
 
-# Fix: expo-modules-core incompatibility with AGP 8.x
-# 'release' SoftwareComponent no longer auto-created in AGP 8.2+
-echo "" >> android/gradle.properties
-echo "# Fix for expo-modules-core + AGP 8.x compatibility" >> android/gradle.properties
-echo "android.disableAutomaticComponentCreation=false" >> android/gradle.properties
-
 cd android
 ./gradlew assembleRelease --no-daemon
 cp app/build/outputs/apk/release/app-release.apk ~/Desktop/mamalog.apk
