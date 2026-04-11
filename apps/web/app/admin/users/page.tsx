@@ -28,7 +28,16 @@ async function toggleSuperuser(userId: string, current: boolean) {
 async function deleteUser(userId: string) {
   "use server";
   const { prisma: db } = await import("@/lib/prisma");
-  await db.user.delete({ where: { id: userId } });
+  // Delete in FK-safe order: children first, then parent
+  await db.$transaction([
+    db.behaviorLog.deleteMany({ where: { logEntry: { userId } } }),
+    db.logEntry.deleteMany({ where: { userId } }),
+    db.subscription.deleteMany({ where: { userId } }),
+    db.userSettings.deleteMany({ where: { userId } }),
+    db.aIUsageLog.deleteMany({ where: { userId } }),
+    db.bookmark.deleteMany({ where: { userId } }),
+    db.user.delete({ where: { id: userId } }),
+  ]);
   revalidatePath("/admin/users");
 }
 

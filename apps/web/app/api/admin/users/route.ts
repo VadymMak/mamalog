@@ -12,7 +12,15 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  await prisma.user.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.behaviorLog.deleteMany({ where: { logEntry: { userId: id } } }),
+    prisma.logEntry.deleteMany({ where: { userId: id } }),
+    prisma.subscription.deleteMany({ where: { userId: id } }),
+    prisma.userSettings.deleteMany({ where: { userId: id } }),
+    prisma.aIUsageLog.deleteMany({ where: { userId: id } }),
+    prisma.bookmark.deleteMany({ where: { userId: id } }),
+    prisma.user.delete({ where: { id } }),
+  ]);
 
   return NextResponse.json({ success: true });
 }
