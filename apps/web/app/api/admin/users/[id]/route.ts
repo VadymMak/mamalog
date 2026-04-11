@@ -14,43 +14,58 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
   const { id } = await params;
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        language: true,
-        // isSuperUser omitted — column not yet in prod DB
-        childName: true,
-        childAge: true,
-        diagnosis: true,
-        createdAt: true,
-        subscription: {
-          select: { plan: true, status: true, expiresAt: true },
-        },
-        _count: {
-          select: { logEntries: true },
-        },
-        logEntries: {
-          select: {
-            date: true,
-            moodScore: true,
-            notes: true,
-            _count: { select: { behaviors: true } },
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [user, aiUsageTotal, aiUsageToday, totalBookmarks] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          language: true,
+          isSuperUser: true,
+          childName: true,
+          childAge: true,
+          diagnosis: true,
+          createdAt: true,
+          subscription: {
+            select: { plan: true, status: true, expiresAt: true },
           },
-          orderBy: { date: "desc" },
-          take: 5,
+          _count: {
+            select: { logEntries: true },
+          },
+          logEntries: {
+            select: {
+              date: true,
+              moodScore: true,
+              notes: true,
+              _count: { select: { behaviors: true } },
+            },
+            orderBy: { date: "desc" },
+            take: 5,
+          },
         },
-      },
-    });
+      }),
+      prisma.aIUsageLog.count({ where: { userId: id } }).catch(() => 0),
+      prisma.aIUsageLog.count({ where: { userId: id, createdAt: { gte: todayStart } } }).catch(() => 0),
+      prisma.bookmark.count({ where: { userId: id } }).catch(() => 0),
+    ]);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
     }
 
     const totalBehaviors = user.logEntries.reduce((sum, e) => sum + e._count.behaviors, 0);
+
+    // Count distinct active days from log entries
+    const allLogDates = await prisma.logEntry.findMany({
+      where: { userId: id },
+      select: { date: true },
+    });
+    const daysActive = new Set(allLogDates.map((e) => e.date.toISOString().split("T")[0])).size;
 
     const { _count, logEntries, ...rest } = user;
 
@@ -60,6 +75,10 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Ne
         ...rest,
         totalLogs: _count.logEntries,
         totalBehaviors,
+        daysActive,
+        aiUsageTotal,
+        aiUsageToday,
+        totalBookmarks,
         lastActiveAt: logEntries[0]?.date ?? null,
         recentLogs: logEntries.map((e) => ({
           date: e.date,

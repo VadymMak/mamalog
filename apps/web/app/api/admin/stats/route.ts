@@ -10,17 +10,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
-    const [totalUsers, pendingSpecialists, totalLogEntries, activeTodayEntries] =
-      await prisma.$transaction([
-        prisma.user.count(),
-        prisma.specialist.count({ where: { status: "PENDING" } }),
-        prisma.logEntry.count(),
-        prisma.logEntry.findMany({
-          where: { createdAt: { gte: todayStart } },
-          select: { userId: true },
-          distinct: ["userId"],
-        }),
-      ]);
+    const [
+      totalUsers,
+      pendingSpecialists,
+      totalLogEntries,
+      activeTodayEntries,
+      premiumCount,
+      aiUsageToday,
+      totalBookmarks,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.specialist.count({ where: { status: "PENDING" } }),
+      prisma.logEntry.count(),
+      prisma.logEntry.findMany({
+        where: { createdAt: { gte: todayStart } },
+        select: { userId: true },
+        distinct: ["userId"],
+      }),
+      prisma.subscription.count({ where: { status: "active", plan: { in: ["MONTHLY", "YEARLY"] } } }),
+      prisma.aIUsageLog.count({ where: { createdAt: { gte: todayStart } } }).catch(() => 0),
+      prisma.bookmark.count().catch(() => 0),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -29,6 +39,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         activeToday: activeTodayEntries.length,
         pendingSpecialists,
         totalLogEntries,
+        premiumCount,
+        aiUsageToday,
+        totalBookmarks,
         mrr: null,
       },
     });

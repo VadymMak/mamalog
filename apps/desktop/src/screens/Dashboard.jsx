@@ -4,8 +4,11 @@ import { api } from "../lib/api";
 const CARDS = [
   { key: "totalUsers", label: "Всего пользователей" },
   { key: "activeToday", label: "Активных сегодня" },
+  { key: "premiumCount", label: "Premium подписок" },
   { key: "pendingSpecialists", label: "Ожидают одобрения" },
   { key: "totalLogEntries", label: "Записей в дневнике" },
+  { key: "aiUsageToday", label: "AI запросов сегодня" },
+  { key: "totalBookmarks", label: "Закладок всего" },
 ];
 
 export default function Dashboard({ showToast }) {

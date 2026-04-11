@@ -138,12 +138,20 @@ export default function UserDetail({ user, onBack, showToast }) {
                   <span className="stat-label">Эпизодов поведения</span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-value">—</span>
-                  <span className="stat-label">AI запросов</span>
+                  <span className="stat-value">{d.aiUsageTotal ?? 0}</span>
+                  <span className="stat-label">AI запросов всего</span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-value">—</span>
+                  <span className="stat-value">{d.aiUsageToday ?? 0}</span>
+                  <span className="stat-label">AI запросов сегодня</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-value">{d.daysActive ?? 0}</span>
                   <span className="stat-label">Дней активности</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-value">{d.totalBookmarks ?? 0}</span>
+                  <span className="stat-label">Закладок</span>
                 </div>
               </div>
             </div>
