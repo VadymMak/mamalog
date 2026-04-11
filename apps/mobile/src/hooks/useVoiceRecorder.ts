@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Audio } from "expo-av";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { api } from "../lib/api";
 
 interface Options {
@@ -24,10 +24,13 @@ export function useVoiceRecorder({ language = "ru", onTranscript }: Options) {
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      // iOS only — these options don't exist on Android and can throw
+      if (Platform.OS === "ios") {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+      }
 
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
@@ -49,7 +52,9 @@ export function useVoiceRecorder({ language = "ru", onTranscript }: Options) {
 
     try {
       await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      if (Platform.OS === "ios") {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      }
 
       const uri = recording.getURI();
       recordingRef.current = null;
