@@ -33,6 +33,17 @@ async function migrate() {
 
     // Backfill: mark existing KnowledgeBase rows as approved if verified=true
     'UPDATE "KnowledgeBase" SET "status" = \'approved\' WHERE "verified" = true AND "status" = \'approved\'',
+
+    // Bookmark table
+    `CREATE TABLE IF NOT EXISTS "Bookmark" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "articleId" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Bookmark_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "Bookmark_userId_articleId_key" UNIQUE ("userId", "articleId")
+    )`,
+    'CREATE INDEX IF NOT EXISTS "Bookmark_userId_idx" ON "Bookmark"("userId")',
   ]
 
   for (const sql of migrations) {

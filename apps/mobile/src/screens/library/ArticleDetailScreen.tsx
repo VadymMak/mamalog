@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,14 @@ import {
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import type { NativeStackNavigationProp, RouteProp } from "@react-navigation/native-stack";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import { ARTICLES } from "../../data/articles";
 import type { LibraryStackParamList } from "../../navigation/MainNavigator";
 import { API_URL } from "../../lib/constants";
-import { getAuthHeaders } from "../../lib/api";
+import { api, getAuthHeaders } from "../../lib/api";
 
 type NavProp = NativeStackNavigationProp<LibraryStackParamList, "ArticleDetail">;
 type RoutePropType = RouteProp<LibraryStackParamList, "ArticleDetail">;
@@ -48,6 +49,7 @@ export default function ArticleDetailScreen() {
   const navigation = useNavigation<NavProp>();
   const { params } = useRoute<RoutePropType>();
   const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [remote, setRemote] = useState<RemoteArticle | null>(null);
   const [loadingRemote, setLoadingRemote] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -55,8 +57,9 @@ export default function ArticleDetailScreen() {
   // Try local first
   const localArticle = ARTICLES.find((a) => a.id === params.articleId);
 
+  // Fetch remote article if not in local data
   useEffect(() => {
-    if (localArticle) return; // found locally, no fetch needed
+    if (localArticle) return;
     setLoadingRemote(true);
     (async () => {
       try {
@@ -73,6 +76,28 @@ export default function ArticleDetailScreen() {
       }
     })();
   }, [params.articleId]);
+
+  // Load bookmark state from API
+  useEffect(() => {
+    api.get(`/api/bookmarks/${params.articleId}`)
+      .then((res) => { if (res.data.success) setBookmarked(res.data.data.bookmarked); })
+      .catch(() => {}); // fail silently
+  }, [params.articleId]);
+
+  // Toggle bookmark via API
+  const toggleBookmark = useCallback(async () => {
+    if (bookmarkLoading) return;
+    setBookmarkLoading(true);
+    setBookmarked((v) => !v); // optimistic
+    try {
+      const res = await api.post(`/api/bookmarks/${params.articleId}`);
+      if (res.data.success) setBookmarked(res.data.data.bookmarked);
+    } catch {
+      setBookmarked((v) => !v); // revert on error
+    } finally {
+      setBookmarkLoading(false);
+    }
+  }, [params.articleId, bookmarkLoading]);
 
   // Related articles (local only)
   const related = ARTICLES.filter(
@@ -132,7 +157,8 @@ export default function ArticleDetailScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={() => setBookmarked((v) => !v)}
+          onPress={toggleBookmark}
+          disabled={bookmarkLoading}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons

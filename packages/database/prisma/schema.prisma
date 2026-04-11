@@ -139,6 +139,16 @@ model AIUsageLog {
   @@index([userId, createdAt])
 }
 
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId])
+  @@index([userId])
+}
+
 model KnowledgeBase {
   id          String                          @id @default(cuid())
   title       String
