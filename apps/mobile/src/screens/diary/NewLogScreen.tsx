@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
+import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import type { DiaryStackParamList } from "../../navigation/MainNavigator";
@@ -68,7 +69,7 @@ function SectionTitle({ label }: { label: string }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function NewLogScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<DiaryStackParamList>>();
   const route = useRoute<RouteProp<DiaryStackParamList, "NewLog">>();
 
@@ -78,8 +79,12 @@ export default function NewLogScreen() {
   const [sleepHours, setSleepHours] = useState("");
   const [energyLevel, setEnergyLevel] = useState(5);
   const [notes, setNotes] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const { isRecording, isTranscribing, toggle: toggleVoice } = useVoiceRecorder({
+    language: i18n.language,
+    onTranscript: (text) => setNotes((prev) => prev ? `${prev} ${text}` : text),
+  });
 
   function toggleEmotion(key: EmotionKey) {
     const label = t(`newLog.tags.${key}`);
@@ -97,15 +102,6 @@ export default function NewLogScreen() {
       next.has(label) ? next.delete(label) : next.add(label);
       return next;
     });
-  }
-
-  function handleVoiceRecord() {
-    // TODO: implement with expo-audio
-    setIsRecording((r) => !r);
-    if (isRecording) {
-      setIsRecording(false);
-      Alert.alert(t("common.error"), "Audio recording requires expo-audio setup.");
-    }
   }
 
   async function handleSave() {
@@ -218,17 +214,26 @@ export default function NewLogScreen() {
           <View style={styles.notesHeader}>
             <SectionTitle label={t("newLog.notes")} />
             <TouchableOpacity
-              style={[styles.voiceBtn, isRecording && styles.voiceBtnActive]}
-              onPress={handleVoiceRecord}
+              style={[styles.voiceBtn, (isRecording || isTranscribing) && styles.voiceBtnActive]}
+              onPress={toggleVoice}
+              disabled={isTranscribing}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={isRecording ? "stop-circle" : "mic-outline"}
-                size={16}
-                color={isRecording ? colors.sos : colors.primary}
-              />
-              <Text style={[styles.voiceBtnText, isRecording && styles.voiceBtnTextActive]}>
-                {isRecording ? t("newLog.voiceRecording") : t("newLog.voiceRecord")}
+              {isTranscribing ? (
+                <ActivityIndicator size={14} color={colors.sos} />
+              ) : (
+                <Ionicons
+                  name={isRecording ? "stop-circle" : "mic-outline"}
+                  size={16}
+                  color={isRecording ? colors.sos : colors.primary}
+                />
+              )}
+              <Text style={[styles.voiceBtnText, (isRecording || isTranscribing) && styles.voiceBtnTextActive]}>
+                {isTranscribing
+                  ? t("newLog.voiceTranscribing")
+                  : isRecording
+                  ? t("newLog.voiceRecording")
+                  : t("newLog.voiceRecord")}
               </Text>
             </TouchableOpacity>
           </View>

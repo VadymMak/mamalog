@@ -164,6 +164,7 @@ const ru = {
     durationPlaceholder: "5",
     voiceRecord: "Голос",
     voiceRecording: "Запись...",
+    voiceTranscribing: "Обработка...",
     save: "Сохранить эпизод",
     saveError: "Не удалось сохранить",
     charsLeft: "симв.",
@@ -191,6 +192,7 @@ const ru = {
     notesPlaceholder: "Что произошло сегодня?",
     voiceRecord: "Записать голос",
     voiceRecording: "Запись...",
+    voiceTranscribing: "Обработка...",
     charsLeft: "симв. осталось",
     saveError: "Не удалось сохранить",
     tags: {
@@ -471,6 +473,7 @@ const en = {
     durationPlaceholder: "5",
     voiceRecord: "Voice",
     voiceRecording: "Recording...",
+    voiceTranscribing: "Processing...",
     save: "Save episode",
     saveError: "Failed to save",
     charsLeft: "chars",
@@ -498,6 +501,7 @@ const en = {
     notesPlaceholder: "What happened today?",
     voiceRecord: "Record voice",
     voiceRecording: "Recording...",
+    voiceTranscribing: "Processing...",
     charsLeft: "chars left",
     saveError: "Failed to save",
     tags: {

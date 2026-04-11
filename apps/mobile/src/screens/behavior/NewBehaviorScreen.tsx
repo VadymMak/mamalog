@@ -11,11 +11,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import type { NativeStackNavigationProp, RouteProp } from "@react-navigation/native-stack";
+import type { RouteProp } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { isAxiosError } from "axios";
 import { api } from "../../lib/api";
+import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import type { BehaviorStackParamList } from "../../navigation/MainNavigator";
@@ -55,7 +57,7 @@ const TRIGGER_MAX = 200;
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function NewBehaviorScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<BehaviorStackParamList>>();
   const route = useRoute<RouteProp<BehaviorStackParamList, "NewBehavior">>();
   const logEntryId = route.params?.logEntryId;
@@ -65,22 +67,16 @@ export default function NewBehaviorScreen() {
   const [trigger, setTrigger] = useState("");
   const [intensity, setIntensity] = useState(5);
   const [duration, setDuration] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const { isRecording, isTranscribing, toggle: toggleVoice } = useVoiceRecorder({
+    language: i18n.language,
+    onTranscript: (text) => setTrigger((prev) => prev ? `${prev} ${text}` : text),
+  });
 
   const intensityColor =
     intensity <= 3 ? colors.success :
     intensity <= 6 ? colors.warning : colors.sos;
-
-  function handleVoiceRecord() {
-    if (isRecording) {
-      setIsRecording(false);
-    } else {
-      setIsRecording(true);
-      Alert.alert(t("common.error"), "Audio recording requires expo-audio setup.");
-      setIsRecording(false);
-    }
-  }
 
   async function handleSave() {
     // category always has a value (default: "aggression"), but guard just in case
@@ -168,17 +164,26 @@ export default function NewBehaviorScreen() {
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitleInline}>{t("newBehavior.triggerLabel")}</Text>
             <TouchableOpacity
-              style={[styles.voiceBtn, isRecording && styles.voiceBtnActive]}
-              onPress={handleVoiceRecord}
+              style={[styles.voiceBtn, (isRecording || isTranscribing) && styles.voiceBtnActive]}
+              onPress={toggleVoice}
+              disabled={isTranscribing}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={isRecording ? "stop-circle" : "mic-outline"}
-                size={16}
-                color={isRecording ? colors.sos : colors.primary}
-              />
-              <Text style={[styles.voiceBtnText, isRecording && styles.voiceBtnTextActive]}>
-                {isRecording ? t("newBehavior.voiceRecording") : t("newBehavior.voiceRecord")}
+              {isTranscribing ? (
+                <ActivityIndicator size={14} color={colors.sos} />
+              ) : (
+                <Ionicons
+                  name={isRecording ? "stop-circle" : "mic-outline"}
+                  size={16}
+                  color={isRecording ? colors.sos : colors.primary}
+                />
+              )}
+              <Text style={[styles.voiceBtnText, (isRecording || isTranscribing) && styles.voiceBtnTextActive]}>
+                {isTranscribing
+                  ? t("newBehavior.voiceTranscribing")
+                  : isRecording
+                  ? t("newBehavior.voiceRecording")
+                  : t("newBehavior.voiceRecord")}
               </Text>
             </TouchableOpacity>
           </View>
