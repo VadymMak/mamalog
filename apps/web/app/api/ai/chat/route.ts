@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { APIError } from "openai";
-import Anthropic from "@anthropic-ai/sdk";
 import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
@@ -26,8 +25,8 @@ const TODAY_START = () => {
 };
 
 const FREE_DAILY_LIMIT = 3;
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const PREMIUM_DAILY_LIMIT = 20;
+const MODEL = "gpt-4o-mini";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const auth = await getRequiredSession();
@@ -45,8 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch user + subscription in one query
-    // NOTE: isSuperUser column not yet in prod DB — defaulting to false until migration runs
+    // Fetch user subscription
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -61,26 +59,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       subscriptionActive &&
       (subscriptionPlan === "MONTHLY" || subscriptionPlan === "YEARLY");
 
-    // Enforce FREE daily limit
-    // NOTE: AIUsageLog table not yet in prod DB — using in-memory no-op until migration runs
-    if (!isPremium) {
-      try {
-        const todayCount = await prisma.aIUsageLog.count({
-          where: { userId, createdAt: { gte: TODAY_START() } },
-        });
-        if (todayCount >= FREE_DAILY_LIMIT) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Free plan limit reached (${FREE_DAILY_LIMIT} messages/day). Upgrade to Premium for unlimited access.`,
-              limitReached: true,
-            },
-            { status: 429 }
-          );
-        }
-      } catch {
-        // AIUsageLog table missing in DB — skip rate limiting until migration runs
+    const dailyLimit = isPremium ? PREMIUM_DAILY_LIMIT : FREE_DAILY_LIMIT;
+
+    // Enforce daily limit for all users
+    // NOTE: AIUsageLog table not yet in prod DB — skip rate limiting until migration runs
+    try {
+      const todayCount = await prisma.aIUsageLog.count({
+        where: { userId, createdAt: { gte: TODAY_START() } },
+      });
+      if (todayCount >= dailyLimit) {
+        const limitMsg = isPremium
+          ? `Premium plan limit reached (${PREMIUM_DAILY_LIMIT} messages/day). Try again tomorrow.`
+          : `Free plan limit reached (${FREE_DAILY_LIMIT} messages/day). Upgrade to Premium for ${PREMIUM_DAILY_LIMIT} messages/day.`;
+        return NextResponse.json(
+          { success: false, error: limitMsg, limitReached: true, isPremium },
+          { status: 429 }
+        );
       }
+    } catch {
+      // AIUsageLog table missing in DB — skip until migration runs
     }
 
     // Run all context fetches in parallel — vector search, keyword search, diary
@@ -116,38 +113,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? `${message}\n\n[Additional context: ${contextHints.join(", ")}]`
         : message;
 
-    let reply: string;
-    let tokensUsed = 0;
-    let model: string;
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
+      ],
+      max_tokens: 800,
+      temperature: 0.7,
+    });
 
-    if (isPremium) {
-      // Premium: Claude Sonnet with full hybrid RAG
-      model = "claude-sonnet-4-6";
-      const response = await anthropic.messages.create({
-        model,
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-      });
-      const block = response.content[0];
-      reply = block.type === "text" ? block.text : "";
-      tokensUsed =
-        (response.usage.input_tokens ?? 0) + (response.usage.output_tokens ?? 0);
-    } else {
-      // Free: GPT-4o-mini with same compact context
-      model = "gpt-4o-mini";
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        max_tokens: 800,
-        temperature: 0.7,
-      });
-      reply = completion.choices[0]?.message?.content ?? "";
-      tokensUsed = completion.usage?.total_tokens ?? 0;
-    }
+    const reply = completion.choices[0]?.message?.content ?? "";
+    const tokensUsed = completion.usage?.total_tokens ?? 0;
 
     // Log usage for rate limiting (best-effort — table may not exist yet)
     try {
@@ -158,18 +135,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      data: { reply, language, tokensUsed, model, isPremium },
+      data: { reply, language, tokensUsed, model: MODEL, isPremium },
     });
   } catch (err) {
     if (err instanceof APIError) {
       if (err.status === 429) {
         console.error("[POST /api/ai/chat] OpenAI quota exceeded:", err.message);
         return NextResponse.json(
-          {
-            success: false,
-            error:
-              "AI service is temporarily unavailable. Please try again later.",
-          },
+          { success: false, error: "AI service is temporarily unavailable. Please try again later." },
           { status: 429 }
         );
       }
