@@ -111,7 +111,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 }
 
-// ─── GET /api/behavior?logEntryId=xxx ─────────────────────────────────────────
+// ─── GET /api/behavior ────────────────────────────────────────────────────────
+// Supports two query modes:
+//   ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD  → date-range query (for calendar dots)
+//   ?logEntryId=xxx                            → single log entry query (existing)
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = await getRequiredSession();
@@ -119,11 +122,45 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const userId = getUserId(auth.session);
 
   try {
-    const logEntryId = req.nextUrl.searchParams.get("logEntryId");
+    const { searchParams } = req.nextUrl;
+    const logEntryId = searchParams.get("logEntryId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
+    // ── Date-range mode ────────────────────────────────────────────────────
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(`${endDate}T23:59:59.999Z`);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+        return NextResponse.json(
+          { success: false, error: "Invalid date range" },
+          { status: 400 }
+        );
+      }
+
+      const behaviors = await prisma.behaviorLog.findMany({
+        where: {
+          logEntry: { userId },
+          createdAt: { gte: start, lte: end },
+        },
+        select: {
+          id: true,
+          category: true,
+          intensity: true,
+          createdAt: true,
+          logEntry: { select: { date: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return NextResponse.json({ success: true, data: behaviors });
+    }
+
+    // ── logEntryId mode (existing behaviour) ──────────────────────────────
     if (!logEntryId) {
       return NextResponse.json(
-        { success: false, error: "logEntryId query param is required" },
+        { success: false, error: "Provide logEntryId or startDate+endDate" },
         { status: 400 }
       );
     }

@@ -53,6 +53,18 @@ interface LogResponse {
   data: LogEntrySlim[];
 }
 
+interface BehaviorEntry {
+  id: string;
+  category: string;
+  createdAt: string;
+  logEntry: { date: string };
+}
+
+interface BehaviorResponse {
+  success: boolean;
+  data: BehaviorEntry[];
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -153,6 +165,7 @@ export default function CalendarScreen() {
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntrySlim[]>([]);
+  const [behaviors, setBehaviors] = useState<BehaviorEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
   // ── Derived maps ─────────────────────────────────────────────────────────
@@ -176,6 +189,16 @@ export default function CalendarScreen() {
     return map;
   }, [logEntries]);
 
+  const behaviorDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of behaviors) {
+      // Use logEntry.date as the canonical day for the behavior
+      const dateStr = b.logEntry.date.split("T")[0];
+      if (dateStr) set.add(dateStr);
+    }
+    return set;
+  }, [behaviors]);
+
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async (year: number, month: number) => {
@@ -184,9 +207,10 @@ export default function CalendarScreen() {
     const endDate = toISO(new Date(year, month + 1, 0));
 
     try {
-      const [lessonsRes, logRes] = await Promise.allSettled([
+      const [lessonsRes, logRes, behaviorRes] = await Promise.allSettled([
         api.get<LessonsResponse>(`/api/lessons?startDate=${startDate}&endDate=${endDate}`),
         api.get<LogResponse>(`/api/log?from=${startDate}&to=${endDate}&limit=100`),
+        api.get<BehaviorResponse>(`/api/behavior?startDate=${startDate}&endDate=${endDate}`),
       ]);
 
       if (lessonsRes.status === "fulfilled" && lessonsRes.value.data.success) {
@@ -198,6 +222,11 @@ export default function CalendarScreen() {
         setLogEntries(logRes.value.data.data);
       } else {
         setLogEntries([]);
+      }
+      if (behaviorRes.status === "fulfilled" && behaviorRes.value.data.success) {
+        setBehaviors(behaviorRes.value.data.data);
+      } else {
+        setBehaviors([]);
       }
     } finally {
       setLoading(false);
@@ -306,6 +335,7 @@ export default function CalendarScreen() {
               selectedDate={selectedDate}
               lessonsByDate={lessonsByDate}
               moodByDate={moodByDate}
+              behaviorDates={behaviorDates}
               onSelectDay={setSelectedDate}
             />
           )}
@@ -357,6 +387,7 @@ interface MonthViewProps {
   selectedDate: string;
   lessonsByDate: Map<string, Lesson[]>;
   moodByDate: Map<string, number>;
+  behaviorDates: Set<string>;
   onSelectDay: (d: string) => void;
 }
 
@@ -366,6 +397,7 @@ function MonthView({
   selectedDate,
   lessonsByDate,
   moodByDate,
+  behaviorDates,
   onSelectDay,
 }: MonthViewProps) {
   return (
@@ -388,11 +420,13 @@ function MonthView({
           const mood = moodByDate.get(dateStr) ?? null;
           const moodGood = mood !== null && mood >= 7;
           const moodBad = mood !== null && mood <= 4;
+          const hasBehavior = behaviorDates.has(dateStr);
 
           const dots: string[] = [];
           if (hasLesson) dots.push(colors.primary);
           if (moodGood) dots.push(colors.success);
           if (moodBad) dots.push(colors.warning);
+          if (hasBehavior) dots.push(colors.error);
 
           return (
             <TouchableOpacity
