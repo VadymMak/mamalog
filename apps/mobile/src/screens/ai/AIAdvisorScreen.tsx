@@ -21,6 +21,7 @@ import { get, set } from "../../lib/storage";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import { useLanguageContext } from "../../context/LanguageContext";
+import { useProGate } from "../../hooks/useProGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,14 +170,7 @@ function MessageBubble({ message }: { message: Message }) {
 
 function LimitBanner({ count }: { count: number }) {
   const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
-
-  function showSubscriptionAlert() {
-    Alert.alert(
-      "Подписка Mamalog",
-      "Безлимитный доступ к AI советнику:\n\n• Месячный план — 299 ₽/мес\n• Годовой план — 1 990 ₽/год\n\nСкоро доступно в приложении.",
-      [{ text: "Понятно", style: "default" }]
-    );
-  }
+  const { requirePro } = useProGate();
 
   if (remaining === 0) {
     return (
@@ -184,8 +178,8 @@ function LimitBanner({ count }: { count: number }) {
         <Text style={styles.limitBannerText}>
           Дневной лимит исчерпан. Для неограниченного доступа оформите подписку.
         </Text>
-        <TouchableOpacity onPress={showSubscriptionAlert} activeOpacity={0.8}>
-          <Text style={styles.limitBannerLink}>Узнать о подписке →</Text>
+        <TouchableOpacity onPress={() => requirePro(() => {})} activeOpacity={0.8}>
+          <Text style={styles.limitBannerLink}>Открыть Mamalog Pro →</Text>
         </TouchableOpacity>
       </View>
     );
@@ -247,6 +241,7 @@ function EmptyState({ onSend }: { onSend: (text: string) => void }) {
 export default function AIAdvisorScreen() {
   const { t } = useTranslation();
   const { language } = useLanguageContext();
+  const { isPro, requirePro } = useProGate();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -284,23 +279,8 @@ export default function AIAdvisorScreen() {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
-    if (dailyCount >= FREE_DAILY_LIMIT) {
-      Alert.alert(
-        t("ai.limitTitle"),
-        "Дневной лимит исчерпан. Для неограниченного доступа оформите подписку.",
-        [
-          { text: t("ai.limitCancel"), style: "cancel" },
-          {
-            text: "Узнать о подписке",
-            onPress: () =>
-              Alert.alert(
-                "Подписка Mamalog",
-                "• Месячный план — 299 ₽/мес\n• Годовой план — 1 990 ₽/год\n\nСкоро доступно в приложении.",
-                [{ text: "Понятно" }]
-              ),
-          },
-        ]
-      );
+    if (!isPro && dailyCount >= FREE_DAILY_LIMIT) {
+      requirePro(() => {}); // opens Paywall
       return;
     }
 

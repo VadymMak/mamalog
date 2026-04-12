@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import { useProGate } from "../../hooks/useProGate";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import { commonStyles } from "../../theme/components";
 
@@ -913,6 +914,7 @@ function insightBarColor(type: InsightItem["type"]): string {
 
 function DayDetailPanel({ selectedDate, lessons, moodScore, viewYear, viewMonth }: DayDetailPanelProps) {
   const navigation = useNavigation<CalendarNav>();
+  const { requirePro } = useProGate();
 
   const [aiResult, setAiResult] = useState<AnalyzeResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -988,7 +990,7 @@ function DayDetailPanel({ selectedDate, lessons, moodScore, viewYear, viewMonth 
       {!aiLoaded && (
         <TouchableOpacity
           style={detailStyles.aiBtn}
-          onPress={fetchAiInsights}
+          onPress={() => requirePro(fetchAiInsights)}
           disabled={aiLoading}
           activeOpacity={0.7}
         >

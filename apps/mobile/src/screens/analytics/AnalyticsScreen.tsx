@@ -18,6 +18,7 @@ import { LineChart, BarChart } from "react-native-chart-kit";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import { useProGate } from "../../hooks/useProGate";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import { useLanguageContext } from "../../context/LanguageContext";
@@ -412,6 +413,7 @@ export default function AnalyticsScreen() {
   const { t } = useTranslation();
   const { language } = useLanguageContext();
   const navigation = useNavigation<NativeStackNavigationProp<AnalyticsStackParamList>>();
+  const { requirePro } = useProGate();
 
   const [activeTab, setActiveTab] = useState<"calendar" | "charts">("calendar");
 
@@ -693,7 +695,7 @@ export default function AnalyticsScreen() {
           {!lessonAiLoaded && (
             <TouchableOpacity
               style={styles.lessonAiBtn}
-              onPress={fetchLessonAiInsights}
+              onPress={() => requirePro(fetchLessonAiInsights)}
               disabled={lessonAiLoading}
               activeOpacity={0.7}
             >

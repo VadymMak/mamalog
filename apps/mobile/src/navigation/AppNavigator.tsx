@@ -13,6 +13,7 @@ import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 import SOSScreen from "../screens/sos/SOSScreen";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
+import PaywallScreen from "../screens/PaywallScreen";
 import { STORAGE_KEYS } from "../lib/constants";
 import { setPendingLessonNotification } from "../utils/lessonNotifications";
 
@@ -32,6 +33,7 @@ export type RootStackParamList = {
   Auth: { initialScreen?: "Login" | "Register" | "SpecialistRegister" } | undefined;
   Main: undefined;
   SOS: undefined;
+  Paywall: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -119,6 +121,11 @@ export default function AppNavigator() {
           name="SOS"
           component={SOSScreen}
           options={{ presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
+          options={{ presentation: "modal", headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
