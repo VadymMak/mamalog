@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
 import { validateMessage } from "@/lib/validations";
 import { buildSystemPrompt } from "@/lib/ai";
 import { vectorSearch, keywordSearch, buildKnowledgeContext } from "@/lib/embeddings";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const TODAY_START = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 interface MessageContext {
   childAge?: number;
@@ -51,30 +62,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const dailyLimit = isSuperUser ? 999999 : isPro ? 30 : 3;
 
     // ── Daily limit check (skip for superUser) ─────────────────────────────────
-    const today = new Date().toISOString().split("T")[0]!;
-    let currentCount = 0;
+    const usageCount = await prisma.aIUsageLog
+      .count({ where: { userId, createdAt: { gte: TODAY_START() } } })
+      .catch(() => 0);
 
-    if (!isSuperUser) {
-      try {
-        const usage = await prisma.aIUsageLog.findUnique({
-          where: { userId_date: { userId, date: today } },
-        });
-        currentCount = usage?.count ?? 0;
-        if (currentCount >= dailyLimit) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Лимит ${dailyLimit} сообщений в день исчерпан`,
-              limitReached: true,
-              limit: dailyLimit,
-              used: currentCount,
-            },
-            { status: 429 }
-          );
-        }
-      } catch {
-        // AIUsageLog schema not yet migrated — skip limit check
-      }
+    if (!isSuperUser && usageCount >= dailyLimit) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Лимит ${dailyLimit} сообщений в день исчерпан`,
+          limitReached: true,
+          limit: dailyLimit,
+          used: usageCount,
+        },
+        { status: 429 }
+      );
     }
 
     // ── Build context (vector + keyword + diary) ───────────────────────────────
@@ -115,25 +117,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (isSuperUser) {
       // SuperUser → Claude Opus (unlimited)
-      const Anthropic = require("@anthropic-ai/sdk");
-      const anthropic = new Anthropic.default({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
       const response = await anthropic.messages.create({
         model: "claude-opus-4-6",
         max_tokens: 1000,
         system: systemPrompt,
         messages: [{ role: "user", content: userContent }],
       });
-      reply = response.content[0]?.text ?? "";
+      reply = response.content[0]?.type === "text" ? response.content[0].text : "";
       tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
       modelUsed = "claude-opus-4-6";
     } else {
       // FREE / PRO → OpenAI gpt-4o-mini
-      const OpenAI = require("openai");
-      const openai = new OpenAI.default({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -147,18 +141,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       modelUsed = "gpt-4o-mini";
     }
 
-    // ── Increment usage log ────────────────────────────────────────────────────
-    if (!isSuperUser) {
-      try {
-        await prisma.aIUsageLog.upsert({
-          where: { userId_date: { userId, date: today } },
-          create: { id: `${userId}_${today}`, userId, date: today, count: 1 },
-          update: { count: { increment: 1 } },
-        });
-      } catch {
-        // Migration not yet applied — skip
-      }
-    }
+    // ── Log usage (best-effort, no crash if table missing) ────────────────────
+    await prisma.aIUsageLog
+      .create({ data: { id: crypto.randomUUID(), userId } })
+      .catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -169,7 +155,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         model: modelUsed,
         isPro,
         isSuperUser,
-        used: currentCount + 1,
+        used: usageCount + 1,
         limit: dailyLimit,
       },
     });
