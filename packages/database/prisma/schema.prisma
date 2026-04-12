@@ -25,6 +25,7 @@ model User {
   subscription Subscription?
   logEntries   LogEntry[]
   settings     UserSettings?
+  lessons      Lesson[]
 }
 
 model UserSettings {
@@ -130,6 +131,28 @@ enum SubscriptionPlan {
   FREE
   MONTHLY
   YEARLY
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  type        String   // "speech" | "aba" | "ergo" | "school" | "sensory" | "other"
+  color       String   @default("#6B3FA0")
+  startTime   String   // "10:00"
+  duration    Int      // minutes
+  location    String?
+  specialist  String?
+  repeat      String   @default("none") // "none" | "daily" | "weekly" | "biweekly"
+  repeatDays  String[] // ["mon","wed","fri"]
+  date        String   // "2026-04-11"
+  note        String?
+  rating      Int?     // 1-10 after lesson
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 model AIUsageLog {
