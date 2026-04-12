@@ -15,6 +15,7 @@ import BehaviorScreen from "../screens/behavior/BehaviorScreen";
 import NewBehaviorScreen from "../screens/behavior/NewBehaviorScreen";
 import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
 import AnalyticsScreen from "../screens/analytics/AnalyticsScreen";
+import AddLessonScreen from "../screens/analytics/AddLessonScreen";
 import LibraryScreen from "../screens/library/LibraryScreen";
 import ArticleDetailScreen from "../screens/library/ArticleDetailScreen";
 import SubmitArticleScreen from "../screens/library/SubmitArticleScreen";
@@ -47,10 +48,16 @@ export type LibraryStackParamList = {
   SubmitArticle: undefined;
 };
 
+export type AnalyticsStackParamList = {
+  AnalyticsHome: undefined;
+  AddLesson: undefined;
+};
+
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DiaryStack = createNativeStackNavigator<DiaryStackParamList>();
 const BehaviorStack = createNativeStackNavigator<BehaviorStackParamList>();
 const LibraryStack = createNativeStackNavigator<LibraryStackParamList>();
+const AnalyticsStack = createNativeStackNavigator<AnalyticsStackParamList>();
 
 function SOSButton() {
   const navigation =
@@ -183,6 +190,29 @@ function BehaviorStackNavigator() {
   );
 }
 
+function AnalyticsStackNavigator() {
+  return (
+    <AnalyticsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.textPrimary,
+        headerRight: () => <SOSButton />,
+      }}
+    >
+      <AnalyticsStack.Screen
+        name="AnalyticsHome"
+        component={AnalyticsScreen}
+        options={{ headerShown: false }}
+      />
+      <AnalyticsStack.Screen
+        name="AddLesson"
+        component={AddLessonScreen}
+        options={{ title: "Добавить занятие" }}
+      />
+    </AnalyticsStack.Navigator>
+  );
+}
+
 type TabIconProps = {
   focused: boolean;
   color: string;
@@ -240,9 +270,10 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="AnalyticsTab"
-        component={AnalyticsScreen}
+        component={AnalyticsStackNavigator}
         options={{
           title: t("tabs.analytics"),
+          headerShown: false,
           tabBarLabel: t("tabs.analytics"),
           tabBarIcon: ({ color, size }: TabIconProps) => (
             <Ionicons name="bar-chart-outline" size={size} color={color} />

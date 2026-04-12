@@ -18,6 +18,7 @@ import { api } from "../../lib/api";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import { useLanguageContext } from "../../context/LanguageContext";
+import CalendarScreen from "./CalendarScreen";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -393,6 +394,8 @@ export default function AnalyticsScreen() {
   const { t } = useTranslation();
   const { language } = useLanguageContext();
 
+  const [activeTab, setActiveTab] = useState<"calendar" | "charts">("calendar");
+
   const [period, setPeriod] = useState<Period>(7);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [behaviors, setBehaviors] = useState<BehaviorLog[]>([]);
@@ -549,24 +552,49 @@ export default function AnalyticsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t("analytics.title")}</Text>
-        {/* Period selector */}
-        <View style={styles.periodRow}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[styles.periodBtn, period === p && styles.periodBtnActive]}
-              onPress={() => setPeriod(p)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.periodBtnText, period === p && styles.periodBtnTextActive]}>
-                {t(`analytics.period${p}`)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* Main tab switcher: Календарь | Графики */}
+        <View style={styles.mainTabRow}>
+          <TouchableOpacity
+            style={[styles.mainTab, activeTab === "calendar" && styles.mainTabActive]}
+            onPress={() => setActiveTab("calendar")}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.mainTabText, activeTab === "calendar" && styles.mainTabTextActive]}>
+              Календарь
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mainTab, activeTab === "charts" && styles.mainTabActive]}
+            onPress={() => setActiveTab("charts")}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.mainTabText, activeTab === "charts" && styles.mainTabTextActive]}>
+              Графики
+            </Text>
+          </TouchableOpacity>
         </View>
+        {/* Period selector — charts only */}
+        {activeTab === "charts" && (
+          <View style={styles.periodRow}>
+            {PERIODS.map((p) => (
+              <TouchableOpacity
+                key={p}
+                style={[styles.periodBtn, period === p && styles.periodBtnActive]}
+                onPress={() => setPeriod(p)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.periodBtnText, period === p && styles.periodBtnTextActive]}>
+                  {t(`analytics.period${p}`)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
-      {loading ? (
+      {activeTab === "calendar" ? (
+        <CalendarScreen />
+      ) : loading ? (
         <View style={commonStyles.emptyState}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -644,7 +672,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerTitle: { ...typography.h2, color: colors.textPrimary },
+  headerTitle: { ...typography.h2, color: colors.textPrimary, marginBottom: spacing.sm },
+  mainTabRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  mainTab: {
+    flex: 1,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    backgroundColor: colors.background,
+  },
+  mainTabActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  mainTabText: { ...typography.buttonSmall, color: colors.textSecondary },
+  mainTabTextActive: { color: colors.white },
   periodRow: {
     flexDirection: "row",
     gap: spacing.sm,
