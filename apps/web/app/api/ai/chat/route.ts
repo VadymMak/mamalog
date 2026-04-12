@@ -16,16 +16,6 @@ interface RequestBody {
   context?: MessageContext;
 }
 
-const TODAY_START = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
-const FREE_DAILY_LIMIT = 3;
-const PREMIUM_DAILY_LIMIT = 20;
-const MODEL = "claude-haiku-4-5-20251001";
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const auth = await getRequiredSession();
   if (!auth.ok) return auth.response;
@@ -42,42 +32,52 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch user subscription
+    // ── Determine user tier ────────────────────────────────────────────────────
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
+        isSuperUser: true,
         subscription: { select: { plan: true, status: true } },
       },
     });
 
+    const isSuperUser = user?.isSuperUser ?? false;
     const subscriptionPlan = user?.subscription?.plan ?? "FREE";
     const subscriptionActive = user?.subscription?.status === "active";
-
-    const isPremium =
+    const isPro =
       subscriptionActive &&
       (subscriptionPlan === "MONTHLY" || subscriptionPlan === "YEARLY");
 
-    const dailyLimit = isPremium ? PREMIUM_DAILY_LIMIT : FREE_DAILY_LIMIT;
+    const dailyLimit = isSuperUser ? 999999 : isPro ? 30 : 3;
 
-    // Enforce daily limit
-    try {
-      const todayCount = await prisma.aIUsageLog.count({
-        where: { userId, createdAt: { gte: TODAY_START() } },
-      });
-      if (todayCount >= dailyLimit) {
-        const limitMsg = isPremium
-          ? `Premium plan limit reached (${PREMIUM_DAILY_LIMIT} messages/day). Try again tomorrow.`
-          : `Free plan limit reached (${FREE_DAILY_LIMIT} messages/day). Upgrade to Premium for ${PREMIUM_DAILY_LIMIT} messages/day.`;
-        return NextResponse.json(
-          { success: false, error: limitMsg, limitReached: true, isPremium },
-          { status: 429 }
-        );
+    // ── Daily limit check (skip for superUser) ─────────────────────────────────
+    const today = new Date().toISOString().split("T")[0]!;
+    let currentCount = 0;
+
+    if (!isSuperUser) {
+      try {
+        const usage = await prisma.aIUsageLog.findUnique({
+          where: { userId_date: { userId, date: today } },
+        });
+        currentCount = usage?.count ?? 0;
+        if (currentCount >= dailyLimit) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Лимит ${dailyLimit} сообщений в день исчерпан`,
+              limitReached: true,
+              limit: dailyLimit,
+              used: currentCount,
+            },
+            { status: 429 }
+          );
+        }
+      } catch {
+        // AIUsageLog schema not yet migrated — skip limit check
       }
-    } catch {
-      // AIUsageLog table missing in DB — skip until migration runs
     }
 
-    // Run all context fetches in parallel — vector search, keyword search, diary
+    // ── Build context (vector + keyword + diary) ───────────────────────────────
     const [vectorResults, keywordResults, diaryEntries] = await Promise.all([
       vectorSearch(message, 3).catch(() => []),
       keywordSearch(message, 3).catch(() => []),
@@ -89,7 +89,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }),
     ]);
 
-    // Build compact context (~800 tokens max)
     const knowledgeContext = buildKnowledgeContext(
       vectorResults,
       keywordResults,
@@ -98,7 +97,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const systemPrompt = buildSystemPrompt(language, knowledgeContext || undefined);
 
-    // Append optional context hints
     const contextHints: string[] = [];
     if (context?.childAge !== undefined)
       contextHints.push(`Child's age: ${context.childAge}`);
@@ -110,53 +108,70 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? `${message}\n\n[Additional context: ${contextHints.join(", ")}]`
         : message;
 
-    // Call Anthropic Claude
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 800,
+    // ── Call AI based on tier ──────────────────────────────────────────────────
+    let reply = "";
+    let tokensUsed = 0;
+    let modelUsed = "";
+
+    if (isSuperUser) {
+      // SuperUser → Claude Opus (unlimited)
+      const Anthropic = require("@anthropic-ai/sdk");
+      const anthropic = new Anthropic.default({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+      const response = await anthropic.messages.create({
+        model: "claude-opus-4-6",
+        max_tokens: 1000,
         system: systemPrompt,
         messages: [{ role: "user", content: userContent }],
-      }),
-    });
-
-    if (!claudeRes.ok) {
-      const errText = await claudeRes.text().catch(() => "");
-      if (claudeRes.status === 529 || claudeRes.status === 429) {
-        console.error("[POST /api/ai/chat] Claude overloaded:", claudeRes.status);
-        return NextResponse.json(
-          { success: false, error: "AI service is temporarily unavailable. Please try again later." },
-          { status: 429 }
-        );
-      }
-      console.error("[POST /api/ai/chat] Claude API error:", claudeRes.status, errText);
-      return NextResponse.json(
-        { success: false, error: "AI service unavailable" },
-        { status: 502 }
-      );
+      });
+      reply = response.content[0]?.text ?? "";
+      tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
+      modelUsed = "claude-opus-4-6";
+    } else {
+      // FREE / PRO → OpenAI gpt-4o-mini
+      const OpenAI = require("openai");
+      const openai = new OpenAI.default({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        max_tokens: 1000,
+      });
+      reply = response.choices[0]?.message?.content ?? "";
+      tokensUsed = response.usage?.total_tokens ?? 0;
+      modelUsed = "gpt-4o-mini";
     }
 
-    const claudeData = await claudeRes.json();
-    const reply: string = claudeData.content?.[0]?.text ?? "";
-    const tokensUsed: number =
-      (claudeData.usage?.input_tokens ?? 0) + (claudeData.usage?.output_tokens ?? 0);
-
-    // Log usage for rate limiting (best-effort — table may not exist yet)
-    try {
-      await prisma.aIUsageLog.create({ data: { userId } });
-    } catch {
-      // AIUsageLog table missing in DB — skip until migration runs
+    // ── Increment usage log ────────────────────────────────────────────────────
+    if (!isSuperUser) {
+      try {
+        await prisma.aIUsageLog.upsert({
+          where: { userId_date: { userId, date: today } },
+          create: { id: `${userId}_${today}`, userId, date: today, count: 1 },
+          update: { count: { increment: 1 } },
+        });
+      } catch {
+        // Migration not yet applied — skip
+      }
     }
 
     return NextResponse.json({
       success: true,
-      data: { reply, language, tokensUsed, model: MODEL, isPremium },
+      data: {
+        reply,
+        language,
+        tokensUsed,
+        model: modelUsed,
+        isPro,
+        isSuperUser,
+        used: currentCount + 1,
+        limit: dailyLimit,
+      },
     });
   } catch (err) {
     console.error("[POST /api/ai/chat] Unexpected error:", err);

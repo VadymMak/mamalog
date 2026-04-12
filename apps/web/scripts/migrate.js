@@ -37,6 +37,15 @@ async function migrate() {
     // Push token for Expo notifications
     'ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "pushToken" TEXT',
 
+    // AIUsageLog — add date + count columns for per-day upsert tracking
+    'ALTER TABLE "AIUsageLog" ADD COLUMN IF NOT EXISTS "date" TEXT NOT NULL DEFAULT \'\'',
+    'ALTER TABLE "AIUsageLog" ADD COLUMN IF NOT EXISTS "count" INTEGER NOT NULL DEFAULT 1',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "AIUsageLog_userId_date_key" ON "AIUsageLog"("userId", "date")',
+    'DROP INDEX IF EXISTS "AIUsageLog_userId_createdAt_idx"',
+    'CREATE INDEX IF NOT EXISTS "AIUsageLog_userId_date_idx" ON "AIUsageLog"("userId", "date")',
+    // Backfill date from createdAt for existing rows (safe — only affects rows with empty date)
+    'UPDATE "AIUsageLog" SET "date" = TO_CHAR("createdAt", \'YYYY-MM-DD\') WHERE "date" = \'\'',
+
     // Bookmark table
     `CREATE TABLE IF NOT EXISTS "Bookmark" (
       "id" TEXT NOT NULL,

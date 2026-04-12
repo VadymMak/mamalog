@@ -158,9 +158,12 @@ model Lesson {
 model AIUsageLog {
   id        String   @id @default(cuid())
   userId    String
+  date      String   // "2026-04-12" — one row per user per day
+  count     Int      @default(1)
   createdAt DateTime @default(now())
 
-  @@index([userId, createdAt])
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 model Bookmark {
