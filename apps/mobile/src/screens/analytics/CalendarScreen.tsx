@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
@@ -170,6 +170,7 @@ export default function CalendarScreen() {
   const [logEntries, setLogEntries] = useState<LogEntrySlim[]>([]);
   const [behaviors, setBehaviors] = useState<BehaviorEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ── Derived maps ─────────────────────────────────────────────────────────
 
@@ -204,8 +205,13 @@ export default function CalendarScreen() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
-  const fetchData = useCallback(async (year: number, month: number) => {
-    setLoading(true);
+  // silent=true → header spinner only (used on focus re-fetch, avoids content flash)
+  const fetchData = useCallback(async (year: number, month: number, silent = false) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     const startDate = toISO(new Date(year, month, 1));
     const endDate = toISO(new Date(year, month + 1, 0));
 
@@ -233,12 +239,21 @@ export default function CalendarScreen() {
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
+  // Initial load + month/year navigation
   useEffect(() => {
     fetchData(viewYear, viewMonth);
   }, [viewYear, viewMonth, fetchData]);
+
+  // Re-fetch silently when user returns from AddLesson or LessonNote
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(viewYear, viewMonth, true);
+    }, [fetchData, viewYear, viewMonth])
+  );
 
   // ── Month navigation ──────────────────────────────────────────────────────
 
@@ -283,9 +298,18 @@ export default function CalendarScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.monthTitle}>
-          {MONTHS_RU[viewMonth]} {viewYear}
-        </Text>
+        <View style={styles.monthTitleRow}>
+          <Text style={styles.monthTitle}>
+            {MONTHS_RU[viewMonth]} {viewYear}
+          </Text>
+          {refreshing && (
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+              style={styles.headerSpinner}
+            />
+          )}
+        </View>
         <TouchableOpacity
           onPress={nextMonth}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1184,9 +1208,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  monthTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
   monthTitle: {
     ...typography.h3,
     color: colors.textPrimary,
+  },
+  headerSpinner: {
+    marginLeft: 4,
   },
   modeTabs: {
     flexDirection: "row",
