@@ -25,7 +25,9 @@
         "backgroundColor": "#6B46C1"
       },
       "package": "com.mamalog.app",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +37,9 @@
         "projectId": "dd7aaf1a-0376-4815-b70e-f92af2f43992"
       }
     },
-    "owner": "vadymmak"
+    "owner": "vadymmak",
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
