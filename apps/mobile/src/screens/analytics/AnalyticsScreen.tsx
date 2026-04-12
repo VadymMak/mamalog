@@ -105,6 +105,21 @@ interface AiChatResponse {
   data: { reply: string; language: string; tokensUsed: number };
 }
 
+interface LessonInsightItem {
+  type: "positive" | "warning" | "neutral";
+  icon: string;
+  title: string;
+  text: string;
+  confidence: number;
+}
+
+interface LessonAnalyzeResult {
+  hasInsights: boolean;
+  insights?: LessonInsightItem[];
+  recommendation?: string;
+  message?: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toISO(date: Date): string {
@@ -412,6 +427,30 @@ export default function AnalyticsScreen() {
   // Cache AI insights per period to avoid refetching
   const aiCache = useRef<Map<Period, string[]>>(new Map());
 
+  // Lesson AI analysis (separate from diary AI insights)
+  const [lessonAiResult, setLessonAiResult] = useState<LessonAnalyzeResult | null>(null);
+  const [lessonAiLoading, setLessonAiLoading] = useState(false);
+  const [lessonAiLoaded, setLessonAiLoaded] = useState(false);
+
+  async function fetchLessonAiInsights() {
+    if (lessonAiLoaded || lessonAiLoading) return;
+    setLessonAiLoading(true);
+    const now = new Date();
+    try {
+      const res = await api.post<LessonAnalyzeResult>("/api/lessons/analyze", {
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      });
+      setLessonAiResult(res.data);
+      setLessonAiLoaded(true);
+    } catch {
+      setLessonAiResult({ hasInsights: false, message: "Не удалось загрузить анализ" });
+      setLessonAiLoaded(true);
+    } finally {
+      setLessonAiLoading(false);
+    }
+  }
+
   const PERIODS: Period[] = [7, 14, 30];
 
   async function fetchAiInsights(entries: LogEntry[], p: Period) {
@@ -650,6 +689,68 @@ export default function AnalyticsScreen() {
             />
           }
         >
+          {/* AI lesson analysis */}
+          {!lessonAiLoaded && (
+            <TouchableOpacity
+              style={styles.lessonAiBtn}
+              onPress={fetchLessonAiInsights}
+              disabled={lessonAiLoading}
+              activeOpacity={0.7}
+            >
+              {lessonAiLoading ? (
+                <>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.lessonAiBtnText}>Анализирую данные...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.lessonAiBtnIcon}>✨</Text>
+                  <Text style={styles.lessonAiBtnText}>AI-анализ месяца</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {lessonAiLoaded && lessonAiResult && !lessonAiResult.hasInsights && (
+            <Text style={styles.lessonAiEmpty}>{lessonAiResult.message ?? "Недостаточно данных"}</Text>
+          )}
+
+          {lessonAiLoaded && lessonAiResult?.hasInsights && lessonAiResult.insights && (
+            <View style={styles.lessonInsightsList}>
+              {lessonAiResult.insights.map((insight, i) => (
+                <View key={i} style={styles.lessonInsightCard}>
+                  <View style={styles.lessonInsightHeader}>
+                    <Text style={styles.lessonInsightIcon}>{insight.icon}</Text>
+                    <Text style={styles.lessonInsightTitle}>{insight.title}</Text>
+                  </View>
+                  <Text style={styles.lessonInsightText}>{insight.text}</Text>
+                  <View style={styles.lessonConfidenceBar}>
+                    <View
+                      style={[
+                        styles.lessonConfidenceFill,
+                        {
+                          width: `${insight.confidence}%` as `${number}%`,
+                          backgroundColor:
+                            insight.type === "positive"
+                              ? colors.success
+                              : insight.type === "warning"
+                              ? colors.warning
+                              : colors.textHint,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))}
+              {lessonAiResult.recommendation && (
+                <View style={styles.lessonRecommendation}>
+                  <Text style={styles.lessonRecommendationLabel}>Рекомендация:</Text>
+                  <Text style={styles.lessonRecommendationText}>{lessonAiResult.recommendation}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Summary row */}
           <View style={styles.summaryRow}>
             <SummaryCard label={t("analytics.avgMood")} value={avg(moodScores)} icon="😊" />
@@ -908,5 +1009,82 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textHint,
     fontSize: 10,
+  },
+
+  // Lesson AI analysis
+  lessonAiBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  lessonAiBtnIcon: { fontSize: 16 },
+  lessonAiBtnText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  lessonAiEmpty: {
+    ...typography.caption,
+    color: colors.textHint,
+    textAlign: "center",
+  },
+  lessonInsightsList: {
+    gap: spacing.sm,
+  },
+  lessonInsightCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  lessonInsightHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  lessonInsightIcon: { fontSize: 16 },
+  lessonInsightTitle: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+  },
+  lessonInsightText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  lessonConfidenceBar: {
+    height: 3,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: "hidden",
+  },
+  lessonConfidenceFill: {
+    height: 3,
+    borderRadius: 2,
+  },
+  lessonRecommendation: {
+    backgroundColor: "#EDE9FE",
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  lessonRecommendationLabel: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontWeight: "700",
+  },
+  lessonRecommendationText: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    lineHeight: 18,
   },
 });

@@ -363,6 +363,8 @@ export default function CalendarScreen() {
               selectedDate={selectedDate}
               lessons={selectedLessons}
               moodScore={selectedMood}
+              viewYear={viewYear}
+              viewMonth={viewMonth}
             />
           )}
 
@@ -856,14 +858,66 @@ const lessonCardStyles = StyleSheet.create({
 
 // ─── DayDetailPanel ───────────────────────────────────────────────────────────
 
+interface InsightItem {
+  type: "positive" | "warning" | "neutral";
+  icon: string;
+  title: string;
+  text: string;
+  confidence: number;
+}
+
+interface AnalyzeResult {
+  hasInsights: boolean;
+  insights?: InsightItem[];
+  recommendation?: string;
+  message?: string;
+}
+
 interface DayDetailPanelProps {
   selectedDate: string;
   lessons: Lesson[];
   moodScore: number | null;
+  viewYear: number;
+  viewMonth: number; // 0-indexed
 }
 
-function DayDetailPanel({ selectedDate, lessons, moodScore }: DayDetailPanelProps) {
+function insightBarColor(type: InsightItem["type"]): string {
+  if (type === "positive") return colors.success;
+  if (type === "warning") return colors.warning;
+  return colors.textHint;
+}
+
+function DayDetailPanel({ selectedDate, lessons, moodScore, viewYear, viewMonth }: DayDetailPanelProps) {
   const navigation = useNavigation<CalendarNav>();
+
+  const [aiResult, setAiResult] = useState<AnalyzeResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiLoaded, setAiLoaded] = useState(false);
+
+  // Reset AI state when month changes
+  useEffect(() => {
+    setAiResult(null);
+    setAiLoaded(false);
+    setAiLoading(false);
+  }, [viewYear, viewMonth]);
+
+  async function fetchAiInsights() {
+    if (aiLoaded || aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await api.post<AnalyzeResult>("/api/lessons/analyze", {
+        month: viewMonth + 1,
+        year: viewYear,
+      });
+      setAiResult(res.data);
+      setAiLoaded(true);
+    } catch {
+      setAiResult({ hasInsights: false, message: "Не удалось загрузить анализ" });
+      setAiLoaded(true);
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   return (
     <View style={detailStyles.panel}>
@@ -906,13 +960,63 @@ function DayDetailPanel({ selectedDate, lessons, moodScore }: DayDetailPanelProp
         </View>
       )}
 
-      {/* AI placeholder */}
-      <View style={detailStyles.aiNote}>
-        <Ionicons name="sparkles" size={14} color={colors.primary} />
-        <Text style={detailStyles.aiNoteText}>
-          Данные накапливаются. AI-анализ появится через 2 недели.
-        </Text>
-      </View>
+      {/* ── AI analysis ── */}
+      {!aiLoaded && (
+        <TouchableOpacity
+          style={detailStyles.aiBtn}
+          onPress={fetchAiInsights}
+          disabled={aiLoading}
+          activeOpacity={0.7}
+        >
+          {aiLoading ? (
+            <>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={detailStyles.aiBtnText}>Анализирую данные...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={detailStyles.aiBtnIcon}>✨</Text>
+              <Text style={detailStyles.aiBtnText}>AI-анализ месяца</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {aiLoaded && aiResult && !aiResult.hasInsights && (
+        <Text style={detailStyles.aiEmpty}>{aiResult.message ?? "Недостаточно данных"}</Text>
+      )}
+
+      {aiLoaded && aiResult?.hasInsights && aiResult.insights && (
+        <View style={detailStyles.insightsList}>
+          {aiResult.insights.map((insight, i) => (
+            <View key={i} style={detailStyles.insightCard}>
+              <View style={detailStyles.insightHeader}>
+                <Text style={detailStyles.insightIcon}>{insight.icon}</Text>
+                <Text style={detailStyles.insightTitle}>{insight.title}</Text>
+              </View>
+              <Text style={detailStyles.insightText}>{insight.text}</Text>
+              <View style={detailStyles.confidenceBar}>
+                <View
+                  style={[
+                    detailStyles.confidenceFill,
+                    {
+                      width: `${insight.confidence}%` as `${number}%`,
+                      backgroundColor: insightBarColor(insight.type),
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ))}
+
+          {aiResult.recommendation && (
+            <View style={detailStyles.recommendation}>
+              <Text style={detailStyles.recommendationLabel}>Рекомендация:</Text>
+              <Text style={detailStyles.recommendationText}>{aiResult.recommendation}</Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -980,6 +1084,86 @@ const detailStyles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
     fontWeight: "600",
+  },
+
+  // AI analysis
+  aiBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  aiBtnIcon: { fontSize: 16 },
+  aiBtnText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  aiEmpty: {
+    ...typography.caption,
+    color: colors.textHint,
+    textAlign: "center",
+    marginTop: spacing.xs,
+  },
+  insightsList: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  insightCard: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  insightHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  insightIcon: { fontSize: 16 },
+  insightTitle: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+  },
+  insightText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  confidenceBar: {
+    height: 3,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: "hidden",
+  },
+  confidenceFill: {
+    height: 3,
+    borderRadius: 2,
+  },
+  recommendation: {
+    backgroundColor: "#EDE9FE",
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  recommendationLabel: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontWeight: "700",
+  },
+  recommendationText: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    lineHeight: 18,
   },
 });
 
