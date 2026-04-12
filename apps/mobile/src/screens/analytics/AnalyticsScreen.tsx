@@ -10,7 +10,10 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AnalyticsStackParamList } from "../../navigation/MainNavigator";
+import { consumePendingLessonNotification } from "../../utils/lessonNotifications";
 import { LineChart, BarChart } from "react-native-chart-kit";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
@@ -393,6 +396,7 @@ function SleepBehaviorSection({ days }: { days: SleepBehaviorDay[] }) {
 export default function AnalyticsScreen() {
   const { t } = useTranslation();
   const { language } = useLanguageContext();
+  const navigation = useNavigation<NativeStackNavigationProp<AnalyticsStackParamList>>();
 
   const [activeTab, setActiveTab] = useState<"calendar" | "charts">("calendar");
 
@@ -475,6 +479,16 @@ export default function AnalyticsScreen() {
       setRefreshing(false);
     }
   }
+
+  // Navigate to LessonNote if the user tapped an "after lesson" notification
+  useFocusEffect(
+    useCallback(() => {
+      const lessonId = consumePendingLessonNotification();
+      if (lessonId) {
+        navigation.navigate("LessonNote", { lessonId });
+      }
+    }, [navigation])
+  );
 
   useFocusEffect(
     useCallback(() => {

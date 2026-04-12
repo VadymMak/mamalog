@@ -6,6 +6,7 @@ import {
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { useAuthContext } from "../context/AuthContext";
 import { usePushToken } from "../hooks/usePushToken";
 import AuthNavigator from "./AuthNavigator";
@@ -13,6 +14,18 @@ import MainNavigator from "./MainNavigator";
 import SOSScreen from "../screens/sos/SOSScreen";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
 import { STORAGE_KEYS } from "../lib/constants";
+import { setPendingLessonNotification } from "../utils/lessonNotifications";
+
+// Show notifications when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -31,6 +44,23 @@ export default function AppNavigator() {
 
   // Track previous auth value to detect changes (not fire on initial mount)
   const prevAuthRef = useRef<boolean | null>(null);
+
+  // Handle taps on "after lesson" push notifications
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        lessonId?: string;
+        type?: string;
+      };
+      if (data?.type === "after" && data?.lessonId) {
+        setPendingLessonNotification(data.lessonId);
+        if (navRef.isReady()) {
+          navRef.navigate("Main");
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [navRef]);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE).then((val) => {

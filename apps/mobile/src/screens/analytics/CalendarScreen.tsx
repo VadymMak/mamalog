@@ -20,7 +20,10 @@ import { commonStyles } from "../../theme/components";
 type ViewMode = "month" | "week" | "day";
 
 // Minimal nav type to avoid circular import with MainNavigator
-type CalendarNav = NativeStackNavigationProp<{ AddLesson: undefined }>;
+type CalendarNav = NativeStackNavigationProp<{
+  AddLesson: undefined;
+  LessonNote: { lessonId: string };
+}>;
 
 interface Lesson {
   id: string;
@@ -690,6 +693,7 @@ interface DayListViewProps {
 }
 
 function DayListView({ lessons, selectedDate }: DayListViewProps) {
+  const navigation = useNavigation<CalendarNav>();
   return (
     <View style={dayListStyles.wrapper}>
       <Text style={dayListStyles.dateTitle}>{formatDayTitle(selectedDate)}</Text>
@@ -704,7 +708,11 @@ function DayListView({ lessons, selectedDate }: DayListViewProps) {
       ) : (
         <View style={dayListStyles.list}>
           {lessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} />
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              onPress={() => navigation.navigate("LessonNote", { lessonId: lesson.id })}
+            />
           ))}
         </View>
       )}
@@ -738,8 +746,8 @@ const dayListStyles = StyleSheet.create({
 
 // ─── LessonCard (shared) ──────────────────────────────────────────────────────
 
-function LessonCard({ lesson }: { lesson: Lesson }) {
-  return (
+function LessonCard({ lesson, onPress }: { lesson: Lesson; onPress?: () => void }) {
+  const card = (
     <View style={lessonCardStyles.card}>
       <View
         style={[
@@ -755,7 +763,18 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
           {lesson.duration} мин
           {lesson.specialist ? ` · ${lesson.specialist}` : ""}
         </Text>
+        {lesson.note && (
+          <Text style={lessonCardStyles.notePreview} numberOfLines={1}>
+            {lesson.note.length > 50 ? lesson.note.slice(0, 50) + "…" : lesson.note}
+          </Text>
+        )}
       </View>
+      {lesson.rating !== null && (
+        <View style={[lessonCardStyles.ratingBadge, { backgroundColor: ratingBadgeColor(lesson.rating) }]}>
+          <Ionicons name="star" size={10} color={colors.white} />
+          <Text style={lessonCardStyles.ratingBadgeText}>{lesson.rating}</Text>
+        </View>
+      )}
       {lesson.isRecurring && (
         <Ionicons
           name="repeat"
@@ -766,6 +785,21 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
       )}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {card}
+      </TouchableOpacity>
+    );
+  }
+  return card;
+}
+
+function ratingBadgeColor(n: number): string {
+  if (n <= 3) return colors.error;
+  if (n <= 6) return colors.warning;
+  return colors.success;
 }
 
 const lessonCardStyles = StyleSheet.create({
@@ -797,6 +831,27 @@ const lessonCardStyles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  notePreview: {
+    ...typography.caption,
+    color: colors.textHint,
+    marginTop: 2,
+    fontStyle: "italic",
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    gap: 2,
+    flexShrink: 0,
+  },
+  ratingBadgeText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: "700",
+    fontSize: 11,
+  },
 });
 
 // ─── DayDetailPanel ───────────────────────────────────────────────────────────
@@ -808,6 +863,8 @@ interface DayDetailPanelProps {
 }
 
 function DayDetailPanel({ selectedDate, lessons, moodScore }: DayDetailPanelProps) {
+  const navigation = useNavigation<CalendarNav>();
+
   return (
     <View style={detailStyles.panel}>
       {/* Date header */}
@@ -819,7 +876,22 @@ function DayDetailPanel({ selectedDate, lessons, moodScore }: DayDetailPanelProp
       ) : (
         <View style={detailStyles.lessonsList}>
           {lessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} />
+            <View key={lesson.id}>
+              <LessonCard
+                lesson={lesson}
+                onPress={() => navigation.navigate("LessonNote", { lessonId: lesson.id })}
+              />
+              {!lesson.note && (
+                <TouchableOpacity
+                  style={detailStyles.addNoteBtn}
+                  onPress={() => navigation.navigate("LessonNote", { lessonId: lesson.id })}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="create-outline" size={13} color={colors.primary} />
+                  <Text style={detailStyles.addNoteBtnText}>Добавить заметку →</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ))}
         </View>
       )}
@@ -895,6 +967,19 @@ const detailStyles = StyleSheet.create({
     color: colors.primaryDark,
     flex: 1,
     lineHeight: 18,
+  },
+  addNoteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: spacing.sm + 12 + spacing.sm, // align with card content
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  addNoteBtnText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
   },
 });
 

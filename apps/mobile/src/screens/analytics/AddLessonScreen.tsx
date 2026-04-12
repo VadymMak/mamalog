@@ -19,6 +19,7 @@ import DateTimePicker, {
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import { scheduleLessonReminder } from "../../utils/lessonNotifications";
 import { colors, spacing, borderRadius, typography, shadows } from "../../theme";
 import { commonStyles } from "../../theme/components";
 
@@ -148,7 +149,7 @@ export default function AddLessonScreen() {
 
     setSaving(true);
     try {
-      await api.post("/api/lessons", {
+      const res = await api.post<{ success: boolean; data: { id: string; title: string; date: string; startTime: string } }>("/api/lessons", {
         title: title.trim(),
         type: lessonType,
         color,
@@ -161,7 +162,11 @@ export default function AddLessonScreen() {
         specialist: specialist.trim() || undefined,
       });
 
-      Alert.alert("Готово", "Занятие добавлено", [
+      if (res.data.success) {
+        await scheduleLessonReminder(res.data.data);
+      }
+
+      Alert.alert("Готово", "Занятие добавлено. Напоминание установлено!", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch {

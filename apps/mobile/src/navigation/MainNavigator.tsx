@@ -16,6 +16,7 @@ import NewBehaviorScreen from "../screens/behavior/NewBehaviorScreen";
 import AIAdvisorScreen from "../screens/ai/AIAdvisorScreen";
 import AnalyticsScreen from "../screens/analytics/AnalyticsScreen";
 import AddLessonScreen from "../screens/analytics/AddLessonScreen";
+import LessonNoteScreen from "../screens/analytics/LessonNoteScreen";
 import LibraryScreen from "../screens/library/LibraryScreen";
 import ArticleDetailScreen from "../screens/library/ArticleDetailScreen";
 import SubmitArticleScreen from "../screens/library/SubmitArticleScreen";
@@ -51,6 +52,7 @@ export type LibraryStackParamList = {
 export type AnalyticsStackParamList = {
   AnalyticsHome: undefined;
   AddLesson: undefined;
+  LessonNote: { lessonId: string };
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -208,6 +210,11 @@ function AnalyticsStackNavigator() {
         name="AddLesson"
         component={AddLessonScreen}
         options={{ title: "Добавить занятие" }}
+      />
+      <AnalyticsStack.Screen
+        name="LessonNote"
+        component={LessonNoteScreen}
+        options={{ title: "Заметка о занятии" }}
       />
     </AnalyticsStack.Navigator>
   );
