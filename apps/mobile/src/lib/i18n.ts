@@ -93,6 +93,7 @@ const ru = {
   common: {
     loading: "Загрузка...",
     error: "Ошибка",
+    info: "Информация",
     back: "Назад",
     save: "Сохранить",
     cancel: "Отмена",
@@ -110,6 +111,7 @@ const ru = {
     limitUpgrade: "Улучшить",
     limitCancel: "Закрыть",
     errorSend: "Не удалось отправить сообщение",
+    limitReached: "Дневной лимит исчерпан (3 сообщения). Попробуйте завтра или улучшите подписку.",
     languageBadge: "RU",
     tokens: "токены",
     thinking: "Думает...",
@@ -402,6 +404,7 @@ const en = {
   common: {
     loading: "Loading...",
     error: "Error",
+    info: "Info",
     back: "Back",
     save: "Save",
     cancel: "Cancel",
@@ -419,6 +422,7 @@ const en = {
     limitUpgrade: "Upgrade",
     limitCancel: "Close",
     errorSend: "Failed to send message",
+    limitReached: "Daily limit reached (3 messages). Try again tomorrow or upgrade your plan.",
     languageBadge: "EN",
     tokens: "tokens",
     thinking: "Thinking...",

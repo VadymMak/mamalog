@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { APIError } from "openai";
-import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, getUserId } from "@/lib/session";
 import { validateMessage } from "@/lib/validations";
@@ -26,7 +24,7 @@ const TODAY_START = () => {
 
 const FREE_DAILY_LIMIT = 3;
 const PREMIUM_DAILY_LIMIT = 20;
-const MODEL = "gpt-4o-mini";
+const MODEL = "claude-haiku-4-5-20251001";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const auth = await getRequiredSession();
@@ -61,8 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const dailyLimit = isPremium ? PREMIUM_DAILY_LIMIT : FREE_DAILY_LIMIT;
 
-    // Enforce daily limit for all users
-    // NOTE: AIUsageLog table not yet in prod DB — skip rate limiting until migration runs
+    // Enforce daily limit
     try {
       const todayCount = await prisma.aIUsageLog.count({
         where: { userId, createdAt: { gte: TODAY_START() } },
@@ -113,18 +110,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? `${message}\n\n[Additional context: ${contextHints.join(", ")}]`
         : message;
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-      max_tokens: 800,
-      temperature: 0.7,
+    // Call Anthropic Claude
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 800,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+      }),
     });
 
-    const reply = completion.choices[0]?.message?.content ?? "";
-    const tokensUsed = completion.usage?.total_tokens ?? 0;
+    if (!claudeRes.ok) {
+      const errText = await claudeRes.text().catch(() => "");
+      if (claudeRes.status === 529 || claudeRes.status === 429) {
+        console.error("[POST /api/ai/chat] Claude overloaded:", claudeRes.status);
+        return NextResponse.json(
+          { success: false, error: "AI service is temporarily unavailable. Please try again later." },
+          { status: 429 }
+        );
+      }
+      console.error("[POST /api/ai/chat] Claude API error:", claudeRes.status, errText);
+      return NextResponse.json(
+        { success: false, error: "AI service unavailable" },
+        { status: 502 }
+      );
+    }
+
+    const claudeData = await claudeRes.json();
+    const reply: string = claudeData.content?.[0]?.text ?? "";
+    const tokensUsed: number =
+      (claudeData.usage?.input_tokens ?? 0) + (claudeData.usage?.output_tokens ?? 0);
 
     // Log usage for rate limiting (best-effort — table may not exist yet)
     try {
@@ -138,30 +159,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       data: { reply, language, tokensUsed, model: MODEL, isPremium },
     });
   } catch (err) {
-    if (err instanceof APIError) {
-      if (err.status === 429) {
-        console.error("[POST /api/ai/chat] OpenAI quota exceeded:", err.message);
-        return NextResponse.json(
-          { success: false, error: "AI service is temporarily unavailable. Please try again later." },
-          { status: 429 }
-        );
-      }
-      if (err.status === 401) {
-        console.error("[POST /api/ai/chat] OpenAI auth error:", err.message);
-        return NextResponse.json(
-          { success: false, error: "Internal server error" },
-          { status: 500 }
-        );
-      }
-      if (err.status === 408 || err.code === "ETIMEDOUT") {
-        console.error("[POST /api/ai/chat] OpenAI timeout:", err.message);
-        return NextResponse.json(
-          { success: false, error: "AI service timed out. Please try again." },
-          { status: 504 }
-        );
-      }
-    }
-
     console.error("[POST /api/ai/chat] Unexpected error:", err);
     return NextResponse.json(
       { success: false, error: "Internal server error" },

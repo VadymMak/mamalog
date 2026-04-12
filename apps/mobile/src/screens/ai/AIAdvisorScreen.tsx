@@ -319,11 +319,20 @@ export default function AIAdvisorScreen() {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
-      Alert.alert(t("common.error"), t("ai.errorSend"));
+    } catch (err: unknown) {
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-      setDailyCount((c) => Math.max(0, c - 1));
-      await set(todayKey(), Math.max(0, newCount - 1));
+
+      // Check if server returned limitReached (429) — server-side daily limit hit
+      const axiosErr = err as { response?: { status?: number; data?: { limitReached?: boolean } } };
+      if (axiosErr?.response?.status === 429 && axiosErr?.response?.data?.limitReached) {
+        setDailyCount(FREE_DAILY_LIMIT); // sync local counter to server reality
+        await set(todayKey(), FREE_DAILY_LIMIT);
+        Alert.alert(t("common.info"), t("ai.limitReached"));
+      } else {
+        setDailyCount((c) => Math.max(0, c - 1));
+        await set(todayKey(), Math.max(0, newCount - 1));
+        Alert.alert(t("common.error"), t("ai.errorSend"));
+      }
     } finally {
       setIsThinking(false);
     }
