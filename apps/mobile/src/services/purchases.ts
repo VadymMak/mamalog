@@ -1,76 +1,35 @@
-import Purchases, {
-  LOG_LEVEL,
-  type PurchasesPackage,
-} from "react-native-purchases";
-import { Platform } from "react-native";
+// ─────────────────────────────────────────────────────────────────────────────
+// RevenueCat — MOCKED for stability testing.
+//
+// react-native-purchases native module is crashing on startup.
+// All functions return safe free-tier defaults so the rest of the app works.
+// TODO: re-enable native SDK once crash root cause is confirmed via adb logcat.
+// ─────────────────────────────────────────────────────────────────────────────
 
-// ─── Keys ─────────────────────────────────────────────────────────────────────
-// Replace with production keys when going live
-
-const REVENUECAT_ANDROID_KEY = "test_juYCoanNQDCcTmXLcSFzHvNVlSU";
-const REVENUECAT_IOS_KEY = "test_juYCoanNQDCcTmXLcSFzHvNVlSU";
+import type { PurchasesPackage } from "react-native-purchases";
 
 export const PRO_ENTITLEMENT = "mamalog Pro";
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-// Wrapped in try-catch: native module (RNPurchases) may be absent if the app
-// was built before react-native-purchases was installed (needs expo prebuild).
-
-export function initPurchases(userId?: string): void {
-  try {
-    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-    const apiKey =
-      Platform.OS === "ios" ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
-    Purchases.configure({ apiKey, appUserID: userId });
-  } catch (e) {
-    console.warn("[RevenueCat] initPurchases failed — native module not linked?", e);
-  }
+export function initPurchases(_userId?: string): void {
+  console.log("[RevenueCat] MOCKED — purchases disabled, user is free tier");
 }
-
-// ─── Status ───────────────────────────────────────────────────────────────────
 
 export async function checkProStatus(): Promise<boolean> {
-  try {
-    const customerInfo = await Purchases.getCustomerInfo();
-    return customerInfo.entitlements.active[PRO_ENTITLEMENT] !== undefined;
-  } catch (e) {
-    console.warn("[RevenueCat] checkProStatus error:", e);
-    return false;
-  }
+  return false;
 }
 
-// ─── Offerings ────────────────────────────────────────────────────────────────
-
-export async function getOfferings() {
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current;
-  } catch (e) {
-    console.warn("[RevenueCat] getOfferings error:", e);
-    return null;
-  }
+export async function getOfferings(): Promise<null> {
+  return null;
 }
 
-// ─── Purchase ─────────────────────────────────────────────────────────────────
-
-export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
-  try {
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return customerInfo.entitlements.active[PRO_ENTITLEMENT] !== undefined;
-  } catch (e) {
-    console.warn("[RevenueCat] purchasePackage error:", e);
-    throw e; // re-throw so PaywallScreen can show the correct error to user
-  }
+export async function purchasePackage(
+  _pkg: PurchasesPackage
+): Promise<boolean> {
+  console.warn("[RevenueCat] MOCKED — purchasePackage called but disabled");
+  return false;
 }
-
-// ─── Restore ──────────────────────────────────────────────────────────────────
 
 export async function restorePurchases(): Promise<boolean> {
-  try {
-    const customerInfo = await Purchases.restorePurchases();
-    return customerInfo.entitlements.active[PRO_ENTITLEMENT] !== undefined;
-  } catch (e) {
-    console.warn("[RevenueCat] restorePurchases error:", e);
-    throw e; // re-throw so PaywallScreen can show the error to user
-  }
+  console.warn("[RevenueCat] MOCKED — restorePurchases called but disabled");
+  return false;
 }

@@ -38,14 +38,9 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user?.id) {
-      try {
-        initPurchases(user.id); // safe — wrapped in try-catch inside
-      } catch (e) {
-        console.warn("[ProContext] initPurchases threw:", e);
-      }
+      initPurchases(user.id);
       void refresh();
     } else {
-      // Not logged in — still mark loading done
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
