@@ -365,7 +365,7 @@ export default function AIAdvisorScreen() {
         message: trimmed,
         language,
         context: { recentLogs },
-      }, { timeout: 60000 }); // 60s — Claude Sonnet can take 15-30s
+      }, { timeout: 30000 }); // 30s — gpt-4o-mini responds in 3-7s
 
       const responseData = res.data.data;
 
