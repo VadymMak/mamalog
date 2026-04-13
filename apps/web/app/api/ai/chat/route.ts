@@ -118,14 +118,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (isSuperUser) {
       // SuperUser → Claude Opus (unlimited)
       const response = await anthropic.messages.create({
-        model: "claude-opus-4-6",
+        model: "claude-sonnet-4-6",
         max_tokens: 1000,
         system: systemPrompt,
         messages: [{ role: "user", content: userContent }],
       });
       reply = response.content[0]?.type === "text" ? response.content[0].text : "";
       tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
-      modelUsed = "claude-opus-4-6";
+      modelUsed = "claude-sonnet-4-6";
     } else {
       // FREE / PRO → OpenAI gpt-4o-mini
       const response = await openai.chat.completions.create({
