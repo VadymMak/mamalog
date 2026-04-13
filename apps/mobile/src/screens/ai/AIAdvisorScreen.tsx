@@ -24,6 +24,7 @@ import { get, set } from "../../lib/storage";
 import { colors, spacing, borderRadius, shadows, typography } from "../../theme";
 import { commonStyles } from "../../theme/components";
 import { useLanguageContext } from "../../context/LanguageContext";
+import { usePro } from "../../context/ProContext";
 import { useProGate } from "../../hooks/useProGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -261,13 +262,14 @@ function EmptyState({ onSend }: { onSend: (text: string) => void }) {
 export default function AIAdvisorScreen() {
   const { t } = useTranslation();
   const { language } = useLanguageContext();
-  const { isPro, requirePro } = useProGate();
+  const { isPro, isSuperUser, requirePro } = useProGate();
+  const { refresh: refreshPro } = usePro();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
-  const [isSuperUser, setIsSuperUser] = useState(false);
   const [sessionMsgCount, setSessionMsgCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
@@ -276,19 +278,19 @@ export default function AIAdvisorScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
-  // Fetch fresh user status from backend — updates SuperUser flag
+  // Fetch fresh user status from backend — updates ProContext via refreshPro
   const checkUserStatus = useCallback(async () => {
     try {
       const res = await api.get<{ isSuperUser?: boolean }>("/api/user/me");
       if (res.data.isSuperUser) {
         await set(SUPERUSER_KEY, true);
-        setIsSuperUser(true);
         setDailyCount(999);
+        await refreshPro(); // updates isSuperUser in ProContext synchronously
       }
     } catch {
       // Silent fail — keep cached state
     }
-  }, []);
+  }, [refreshPro]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -297,19 +299,15 @@ export default function AIAdvisorScreen() {
   }, [checkUserStatus]);
 
   useEffect(() => {
-    // Load cached state immediately for instant UI
+    // Load cached daily count; isSuperUser comes from ProContext
     Promise.all([
       get<number>(todayKey()),
       get<boolean>(SUPERUSER_KEY),
     ]).then(([c, su]) => {
-      if (su === true) {
-        setIsSuperUser(true);
-        setDailyCount(999);
-      } else {
-        setDailyCount(c ?? 0);
-      }
+      // Use storage SU flag for initial dailyCount before ProContext settles
+      setDailyCount(su === true ? 999 : (c ?? 0));
     });
-    // Verify current status from server
+    // Verify current status from server and update ProContext
     checkUserStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -334,7 +332,7 @@ export default function AIAdvisorScreen() {
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || isThinking) return;
+    if (!trimmed || isThinking || isSending) return;
 
     if (!isPro && !isSuperUser && dailyCount >= FREE_DAILY_LIMIT) {
       requirePro(() => {}); // opens Paywall
@@ -352,6 +350,7 @@ export default function AIAdvisorScreen() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsThinking(true);
+    setIsSending(true);
 
     const newCount = isSuperUser ? 999 : dailyCount + 1;
     if (!isSuperUser) {
@@ -370,11 +369,11 @@ export default function AIAdvisorScreen() {
 
       const responseData = res.data.data;
 
-      // SuperUser — set unlimited state and cache the flag
+      // SuperUser — cache flag + update ProContext
       if (responseData.isSuperUser && !isSuperUser) {
-        setIsSuperUser(true);
-        setDailyCount(999);
         await set(SUPERUSER_KEY, true);
+        setDailyCount(999);
+        await refreshPro();
       }
 
       const aiMsg: Message = {
@@ -397,8 +396,8 @@ export default function AIAdvisorScreen() {
           const stillSU = fresh.data?.isSuperUser === true;
           if (!stillSU && isSuperUser) {
             await AsyncStorage.removeItem(SUPERUSER_KEY);
-            setIsSuperUser(false);
             setDailyCount(0);
+            await refreshPro();
           }
         } catch {
           // Silent fail — keep current SuperUser state
@@ -424,11 +423,12 @@ export default function AIAdvisorScreen() {
       }
     } finally {
       setIsThinking(false);
+      setIsSending(false);
     }
   }
 
   const atLimit = !isSuperUser && !isPro && dailyCount >= FREE_DAILY_LIMIT;
-  const canSend = input.trim().length > 0 && !isThinking && !atLimit;
+  const canSend = input.trim().length > 0 && !isThinking && !isSending && !atLimit;
 
   return (
     <SafeAreaView style={commonStyles.screen}>
@@ -506,7 +506,7 @@ export default function AIAdvisorScreen() {
             disabled={!canSend}
             activeOpacity={0.8}
           >
-            {isThinking ? (
+            {isThinking || isSending ? (
               <ActivityIndicator size="small" color={colors.white} />
             ) : (
               <Ionicons name="send" size={20} color={colors.white} />
