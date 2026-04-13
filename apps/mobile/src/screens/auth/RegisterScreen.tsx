@@ -175,8 +175,8 @@ export default function RegisterScreen() {
         password,
       });
 
-      const { id, email: userEmail, name: userName, role } = loginRes.data.data;
-      await signIn({ id, email: userEmail, name: userName, role }, id);
+      const { id, email: userEmail, name: userName, role, expiresAt } = loginRes.data.data;
+      await signIn({ id, email: userEmail, name: userName, role }, id, expiresAt);
     } catch (err) {
       if (isAxiosError(err)) {
         if (!err.response) {

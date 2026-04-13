@@ -26,7 +26,7 @@ export async function getRequiredSession(): Promise<SessionResult> {
         if (user) {
           const mobileSession = {
             user: { id: user.id, email: user.email, name: user.name },
-            expires: new Date(Date.now() + 86400_000).toISOString(),
+            expires: new Date(Date.now() + 86400_000 * 30).toISOString(),
           } as Session;
           return { ok: true, session: mobileSession };
         }

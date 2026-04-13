@@ -63,6 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
           email: user.email,
           name: user.name,
           role: user.role,
+          expiresAt: new Date(Date.now() + 86400_000 * 30).toISOString(),
         },
         language: user.language,
       },

@@ -98,9 +98,9 @@ export default function LoginScreen() {
         password,
       });
 
-      const { id, email: userEmail, name, role } = res.data.data;
+      const { id, email: userEmail, name, role, expiresAt } = res.data.data;
       // Token placeholder: using user.id until mobile JWT endpoint is added
-      await signIn({ id, email: userEmail, name, role }, id);
+      await signIn({ id, email: userEmail, name, role }, id, expiresAt);
       // AppNavigator will automatically switch to MainNavigator via isAuthenticated
     } catch (err) {
       if (isAxiosError(err)) {
