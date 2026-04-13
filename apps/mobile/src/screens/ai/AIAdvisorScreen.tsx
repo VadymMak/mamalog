@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -12,7 +13,9 @@ import {
   Animated,
   ActivityIndicator,
   Clipboard,
+  RefreshControl,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -266,13 +269,35 @@ export default function AIAdvisorScreen() {
   const [dailyCount, setDailyCount] = useState(0);
   const [isSuperUser, setIsSuperUser] = useState(false);
   const [sessionMsgCount, setSessionMsgCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
+  // Fetch fresh user status from backend — updates SuperUser flag
+  const checkUserStatus = useCallback(async () => {
+    try {
+      const res = await api.get<{ isSuperUser?: boolean }>("/api/user/me");
+      if (res.data.isSuperUser) {
+        await set(SUPERUSER_KEY, true);
+        setIsSuperUser(true);
+        setDailyCount(999);
+      }
+    } catch {
+      // Silent fail — keep cached state
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await checkUserStatus();
+    setRefreshing(false);
+  }, [checkUserStatus]);
+
   useEffect(() => {
+    // Load cached state immediately for instant UI
     Promise.all([
       get<number>(todayKey()),
       get<boolean>(SUPERUSER_KEY),
@@ -284,6 +309,9 @@ export default function AIAdvisorScreen() {
         setDailyCount(c ?? 0);
       }
     });
+    // Verify current status from server
+    checkUserStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -420,7 +448,19 @@ export default function AIAdvisorScreen() {
       >
         {/* Messages */}
         {messages.length === 0 && !isThinking ? (
-          <EmptyState onSend={sendMessage} />
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.emptyScrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
+          >
+            <EmptyState onSend={sendMessage} />
+          </ScrollView>
         ) : (
           <FlatList
             ref={listRef}
@@ -431,6 +471,13 @@ export default function AIAdvisorScreen() {
             showsVerticalScrollIndicator={false}
             ListFooterComponent={isThinking ? <TypingDots /> : null}
             onContentSizeChange={scrollToBottom}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
           />
         )}
 
@@ -475,6 +522,7 @@ export default function AIAdvisorScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  emptyScrollContent: { flexGrow: 1 },
 
   header: {
     paddingHorizontal: spacing.md,
