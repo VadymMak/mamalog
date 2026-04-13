@@ -116,7 +116,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let modelUsed = "";
 
     if (isSuperUser) {
-      // SuperUser → Claude Opus (unlimited)
+      // SuperUser → Claude Sonnet (unlimited)
+      if (!process.env.ANTHROPIC_API_KEY) {
+        console.error("[ai/chat] ANTHROPIC_API_KEY is not set in environment!");
+        return NextResponse.json(
+          { success: false, error: "AI service misconfigured. Contact support." },
+          { status: 503 }
+        );
+      }
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1000,
