@@ -110,43 +110,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? `${message}\n\n[Additional context: ${contextHints.join(", ")}]`
         : message;
 
-    // ── Call AI based on tier ──────────────────────────────────────────────────
-    let reply = "";
-    let tokensUsed = 0;
-    let modelUsed = "";
-
-    if (isSuperUser) {
-      // SuperUser → Claude Sonnet (unlimited)
-      if (!process.env.ANTHROPIC_API_KEY) {
-        console.error("[ai/chat] ANTHROPIC_API_KEY is not set in environment!");
-        return NextResponse.json(
-          { success: false, error: "AI service misconfigured. Contact support." },
-          { status: 503 }
-        );
-      }
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-      });
-      reply = response.content[0]?.type === "text" ? response.content[0].text : "";
-      tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
-      modelUsed = "claude-sonnet-4-6";
-    } else {
-      // FREE / PRO → OpenAI gpt-4o-mini
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        max_tokens: 1000,
-      });
-      reply = response.choices[0]?.message?.content ?? "";
-      tokensUsed = response.usage?.total_tokens ?? 0;
-      modelUsed = "gpt-4o-mini";
-    }
+    // ── Call AI (all tiers → gpt-4o-mini, fast + cheap) ──────────────────────
+    // Anthropic is reserved for knowledge-base article filtering only.
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
+      ],
+      max_tokens: 1000,
+    });
+    const reply = response.choices[0]?.message?.content ?? "";
+    const tokensUsed = response.usage?.total_tokens ?? 0;
+    const modelUsed = "gpt-4o-mini";
 
     // ── Log usage (skip for SuperUser, best-effort) ───────────────────────────
     if (!isSuperUser) {
