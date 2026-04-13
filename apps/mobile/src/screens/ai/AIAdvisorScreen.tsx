@@ -41,6 +41,9 @@ interface ApiChatResponse {
     language: string;
     tokensUsed: number;
     isSuperUser?: boolean;
+    showCounter?: boolean;
+    used?: number;
+    limit?: number;
   };
 }
 
@@ -170,7 +173,7 @@ function MessageBubble({ message }: { message: Message }) {
 
 // ─── Limit banner ─────────────────────────────────────────────────────────────
 
-function LimitBanner({ count, isSuperUser }: { count: number; isSuperUser: boolean }) {
+function LimitBanner({ count, isSuperUser, isPro }: { count: number; isSuperUser: boolean; isPro: boolean }) {
   const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
   const { requirePro } = useProGate();
 
@@ -182,6 +185,9 @@ function LimitBanner({ count, isSuperUser }: { count: number; isSuperUser: boole
       </View>
     );
   }
+
+  // PRO users: limit is handled server-side at 40, no visible counter
+  if (isPro) return null;
 
   if (remaining === 0) {
     return (
@@ -259,6 +265,7 @@ export default function AIAdvisorScreen() {
   const [isThinking, setIsThinking] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
   const [isSuperUser, setIsSuperUser] = useState(false);
+  const [sessionMsgCount, setSessionMsgCount] = useState(0);
   const listRef = useRef<FlatList<Message>>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -352,6 +359,23 @@ export default function AIAdvisorScreen() {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+
+      // Track session messages + re-verify SuperUser every 20 messages
+      const newSessionCount = sessionMsgCount + 1;
+      setSessionMsgCount(newSessionCount);
+      if (newSessionCount % 20 === 0) {
+        try {
+          const fresh = await api.get<{ isSuperUser?: boolean }>("/api/user/me");
+          const stillSU = fresh.data?.isSuperUser === true;
+          if (!stillSU && isSuperUser) {
+            await AsyncStorage.removeItem(SUPERUSER_KEY);
+            setIsSuperUser(false);
+            setDailyCount(0);
+          }
+        } catch {
+          // Silent fail — keep current SuperUser state
+        }
+      }
     } catch (err: unknown) {
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
 
@@ -375,7 +399,7 @@ export default function AIAdvisorScreen() {
     }
   }
 
-  const atLimit = !isSuperUser && dailyCount >= FREE_DAILY_LIMIT;
+  const atLimit = !isSuperUser && !isPro && dailyCount >= FREE_DAILY_LIMIT;
   const canSend = input.trim().length > 0 && !isThinking && !atLimit;
 
   return (
@@ -387,7 +411,7 @@ export default function AIAdvisorScreen() {
       </View>
 
       {/* Daily limit banner */}
-      <LimitBanner count={dailyCount} isSuperUser={isSuperUser} />
+      <LimitBanner count={dailyCount} isSuperUser={isSuperUser} isPro={isPro} />
 
       <KeyboardAvoidingView
         style={styles.flex}

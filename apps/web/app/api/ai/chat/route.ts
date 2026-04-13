@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       subscriptionActive &&
       (subscriptionPlan === "MONTHLY" || subscriptionPlan === "YEARLY");
 
-    const dailyLimit = isSuperUser ? 999999 : isPro ? 30 : 3;
+    const dailyLimit = isSuperUser ? 999999 : isPro ? 40 : 3;
 
     // ── Daily limit check (skip for superUser) ─────────────────────────────────
     const usageCount = await prisma.aIUsageLog
@@ -148,18 +148,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         .catch(() => {});
     }
 
+    // ── Tiered response ───────────────────────────────────────────────────────
+    const baseData = { reply, language, tokensUsed, model: modelUsed };
+
+    if (isSuperUser) {
+      return NextResponse.json({
+        success: true,
+        data: { ...baseData, isSuperUser: true, showCounter: false },
+      });
+    }
+
+    if (isPro) {
+      return NextResponse.json({
+        success: true,
+        data: { ...baseData, showCounter: false },
+      });
+    }
+
+    // FREE
     return NextResponse.json({
       success: true,
-      data: {
-        reply,
-        language,
-        tokensUsed,
-        model: modelUsed,
-        isPro,
-        isSuperUser,
-        used: usageCount + 1,
-        limit: dailyLimit,
-      },
+      data: { ...baseData, used: usageCount + 1, limit: 3, showCounter: true },
     });
   } catch (err) {
     console.error("[POST /api/ai/chat] Unexpected error:", err);
