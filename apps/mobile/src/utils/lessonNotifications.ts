@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import * as Localization from "expo-localization";
 
 // ─── Pending notification store ───────────────────────────────────────────────
 // Module-level variable so AppNavigator can store a tapped notification and
@@ -34,10 +35,21 @@ export async function scheduleLessonReminder(lesson: {
   const [year, month, day] = lesson.date.split("-").map(Number);
   const [hour, minute] = lesson.startTime.split(":").map(Number);
 
-  const lessonDate = new Date(year!, month! - 1, day!, hour!, minute!);
+  // new Date(y, m, d, h, min) always uses LOCAL timezone — correct behaviour
+  const lessonDate = new Date(year!, month! - 1, day!, hour!, minute!, 0, 0);
+
+  if (__DEV__) {
+    console.log("[notifications] Lesson local time:", lessonDate.toLocaleString());
+    console.log("[notifications] Device timezone:", Localization.getCalendars()[0]?.timeZone ?? "unknown");
+    console.log("[notifications] UTC offset (min):", new Date().getTimezoneOffset());
+  }
+
   const reminderDate = new Date(lessonDate.getTime() - 30 * 60 * 1000);
 
-  if (reminderDate <= new Date()) return null; // skip past reminders
+  if (reminderDate <= new Date()) {
+    console.log("[notifications] Reminder in past, skipping");
+    return null; // skip past reminders
+  }
 
   const beforeId = await Notifications.scheduleNotificationAsync({
     content: {
