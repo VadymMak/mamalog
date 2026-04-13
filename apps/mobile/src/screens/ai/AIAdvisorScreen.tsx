@@ -40,6 +40,7 @@ interface ApiChatResponse {
     reply: string;
     language: string;
     tokensUsed: number;
+    isSuperUser?: boolean;
   };
 }
 
@@ -59,6 +60,7 @@ interface LogsApiResponse {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FREE_DAILY_LIMIT = 3;
+const SUPERUSER_KEY = "@mamalog/ai_is_superuser";
 
 const SUGGESTIONS = [
   "Какие паттерны вы видите?",
@@ -168,9 +170,18 @@ function MessageBubble({ message }: { message: Message }) {
 
 // ─── Limit banner ─────────────────────────────────────────────────────────────
 
-function LimitBanner({ count }: { count: number }) {
+function LimitBanner({ count, isSuperUser }: { count: number; isSuperUser: boolean }) {
   const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
   const { requirePro } = useProGate();
+
+  if (isSuperUser) {
+    return (
+      <View style={styles.limitBannerSuperUser}>
+        <Ionicons name="star" size={13} color="#F59E0B" />
+        <Text style={styles.limitBannerSuperUserText}>👑 SuperUser — безлимит</Text>
+      </View>
+    );
+  }
 
   if (remaining === 0) {
     return (
@@ -247,6 +258,7 @@ export default function AIAdvisorScreen() {
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
+  const [isSuperUser, setIsSuperUser] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -254,7 +266,17 @@ export default function AIAdvisorScreen() {
   }, []);
 
   useEffect(() => {
-    get<number>(todayKey()).then((c) => setDailyCount(c ?? 0));
+    Promise.all([
+      get<number>(todayKey()),
+      get<boolean>(SUPERUSER_KEY),
+    ]).then(([c, su]) => {
+      if (su === true) {
+        setIsSuperUser(true);
+        setDailyCount(999);
+      } else {
+        setDailyCount(c ?? 0);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -279,7 +301,7 @@ export default function AIAdvisorScreen() {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
-    if (!isPro && dailyCount >= FREE_DAILY_LIMIT) {
+    if (!isPro && !isSuperUser && dailyCount >= FREE_DAILY_LIMIT) {
       requirePro(() => {}); // opens Paywall
       return;
     }
@@ -296,9 +318,11 @@ export default function AIAdvisorScreen() {
     setInput("");
     setIsThinking(true);
 
-    const newCount = dailyCount + 1;
-    setDailyCount(newCount);
-    await set(todayKey(), newCount);
+    const newCount = isSuperUser ? 999 : dailyCount + 1;
+    if (!isSuperUser) {
+      setDailyCount(newCount);
+      await set(todayKey(), newCount);
+    }
 
     try {
       const recentLogs = await fetchRecentLogs();
@@ -309,13 +333,22 @@ export default function AIAdvisorScreen() {
         context: { recentLogs },
       });
 
+      const responseData = res.data.data;
+
+      // SuperUser — set unlimited state and cache the flag
+      if (responseData.isSuperUser && !isSuperUser) {
+        setIsSuperUser(true);
+        setDailyCount(999);
+        await set(SUPERUSER_KEY, true);
+      }
+
       const aiMsg: Message = {
         id: makeId(),
         role: "ai",
-        text: res.data.data.reply,
+        text: responseData.reply,
         timestamp: new Date(),
-        language: res.data.data.language,
-        tokensUsed: res.data.data.tokensUsed,
+        language: responseData.language,
+        tokensUsed: responseData.tokensUsed,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -325,12 +358,16 @@ export default function AIAdvisorScreen() {
       // Check if server returned limitReached (429) — server-side daily limit hit
       const axiosErr = err as { response?: { status?: number; data?: { limitReached?: boolean } } };
       if (axiosErr?.response?.status === 429 && axiosErr?.response?.data?.limitReached) {
-        setDailyCount(FREE_DAILY_LIMIT); // sync local counter to server reality
-        await set(todayKey(), FREE_DAILY_LIMIT);
+        if (!isSuperUser) {
+          setDailyCount(FREE_DAILY_LIMIT); // sync local counter to server reality
+          await set(todayKey(), FREE_DAILY_LIMIT);
+        }
         Alert.alert(t("common.info"), t("ai.limitReached"));
       } else {
-        setDailyCount((c) => Math.max(0, c - 1));
-        await set(todayKey(), Math.max(0, newCount - 1));
+        if (!isSuperUser) {
+          setDailyCount((c) => Math.max(0, c - 1));
+          await set(todayKey(), Math.max(0, newCount - 1));
+        }
         Alert.alert(t("common.error"), t("ai.errorSend"));
       }
     } finally {
@@ -338,7 +375,7 @@ export default function AIAdvisorScreen() {
     }
   }
 
-  const atLimit = dailyCount >= FREE_DAILY_LIMIT;
+  const atLimit = !isSuperUser && dailyCount >= FREE_DAILY_LIMIT;
   const canSend = input.trim().length > 0 && !isThinking && !atLimit;
 
   return (
@@ -350,7 +387,7 @@ export default function AIAdvisorScreen() {
       </View>
 
       {/* Daily limit banner */}
-      <LimitBanner count={dailyCount} />
+      <LimitBanner count={dailyCount} isSuperUser={isSuperUser} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -384,7 +421,7 @@ export default function AIAdvisorScreen() {
             style={[styles.textInput, atLimit && styles.textInputDisabled]}
             value={input}
             onChangeText={setInput}
-            placeholder={atLimit ? "Дневной лимит исчерпан" : t("ai.placeholder")}
+            placeholder={isSuperUser ? "👑 SuperUser — безлимит" : (atLimit ? "Дневной лимит исчерпан" : t("ai.placeholder"))}
             placeholderTextColor={colors.textHint}
             multiline
             maxLength={1000}
@@ -425,6 +462,23 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.h2, color: colors.textPrimary },
   headerSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+
+  // SuperUser banner
+  limitBannerSuperUser: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: "#FEF3C7",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
+  },
+  limitBannerSuperUserText: {
+    ...typography.caption,
+    color: "#92400E",
+    fontWeight: "700",
+  },
 
   // Limit banner
   limitBanner: {

@@ -141,10 +141,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       modelUsed = "gpt-4o-mini";
     }
 
-    // ── Log usage (best-effort, no crash if table missing) ────────────────────
-    await prisma.aIUsageLog
-      .create({ data: { id: crypto.randomUUID(), userId } })
-      .catch(() => {});
+    // ── Log usage (skip for SuperUser, best-effort) ───────────────────────────
+    if (!isSuperUser) {
+      await prisma.aIUsageLog
+        .create({ data: { id: crypto.randomUUID(), userId } })
+        .catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
