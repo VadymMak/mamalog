@@ -39,7 +39,8 @@
     },
     "owner": "vadymmak",
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-localization"
     ]
   }
 }
